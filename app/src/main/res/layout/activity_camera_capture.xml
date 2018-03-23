@@ -39,6 +39,13 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_gravity="center" />
+
+        <android.opengl.GLSurfaceView
+            android:id="@+id/cameraPreview_surfaceViewNew"
+            android:layout_width="100dp"
+            android:layout_height="200dp"
+            android:layout_margin="10dp"
+            android:layout_gravity="right" />
     </com.android.grafika.AspectFrameLayout>
 
     <Button

@@ -16,6 +16,7 @@
 
 package com.android.grafika;
 
+import android.media.MediaPlayer;
 import android.opengl.EGL14;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
@@ -43,12 +44,14 @@ import android.widget.Toast;
 
 import com.android.grafika.gles.FullFrameRect;
 import com.android.grafika.gles.Texture2dProgram;
+import com.android.grafika.gles.WindowSurface;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 
 import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.opengles.GL;
 import javax.microedition.khronos.opengles.GL10;
 
 /**
@@ -138,8 +141,9 @@ public class CameraCaptureActivity extends Activity
     static final int FILTER_EDGE_DETECT = 4;
     static final int FILTER_EMBOSS = 5;
 
-    private GLSurfaceView mGLView;
+    private GLSurfaceView mGLView, mGLViewNew;
     private CameraSurfaceRenderer mRenderer;
+    private SurfaceRenderer mRendererNew;
     private Camera mCamera;
     private CameraHandler mCameraHandler;
     private boolean mRecordingEnabled;      // controls button state
@@ -154,7 +158,11 @@ public class CameraCaptureActivity extends Activity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_camera_capture);
 
-        File outputFile = new File(getFilesDir(), "camera-test.mp4");
+        File outputFile = new File("/sdcard/DCIM/zmy", "camera-test.mp4");
+        if (outputFile.exists()) {
+            outputFile.delete();
+        }
+
         TextView fileText = (TextView) findViewById(R.id.cameraOutputFile_text);
         fileText.setText(outputFile.toString());
 
@@ -181,7 +189,81 @@ public class CameraCaptureActivity extends Activity
         mGLView.setRenderer(mRenderer);
         mGLView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
 
+        mGLViewNew = findViewById(R.id.cameraPreview_surfaceViewNew);
+        mGLViewNew.setEGLContextClientVersion(2);
+        mGLViewNew.setZOrderMediaOverlay(true);
+        mGLViewNew.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mRenderer.setTarget();
+            }
+        });
+        mRendererNew = new SurfaceRenderer(mGLViewNew);
+        mGLViewNew.setRenderer(mRendererNew);
+        mGLViewNew.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
+
+        mRenderer.setRenderNew(mRendererNew);
+        mRenderer.setGLSurfaceViewNew(mGLViewNew);
+        mRenderer.setGLSurfaceView(mGLView);
         Log.d(TAG, "onCreate complete: " + this);
+    }
+
+    class SurfaceRenderer implements GLSurfaceView.Renderer {
+
+        FullFrameRect mFullScreen;
+        int mTextureId;
+        SurfaceTexture mSurfaceTexture;
+        float[] mSTMatrix = new float[16];
+        GLSurfaceView mGLSurfaceView;
+        boolean mHasChange;
+
+        public SurfaceRenderer(GLSurfaceView glSurfaceView) {
+            mGLSurfaceView = glSurfaceView;
+        }
+
+        public void setHasChange(boolean hasChange) {
+            mHasChange = hasChange;
+        }
+
+        public void setParams(FullFrameRect fullScreen, float[] mtx, SurfaceTexture surfaceTexture, int textureId) {
+//            mFullScreen = fullScreen;
+            mSTMatrix = mtx;
+//            mTextureId = textureId;
+            if (mSurfaceTexture == null) {
+                mSurfaceTexture = surfaceTexture;
+            }
+            mGLSurfaceView.requestRender();
+        }
+
+        @Override
+        public void onSurfaceCreated(GL10 gl, EGLConfig config) {
+            mFullScreen = new FullFrameRect(
+                    new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT));
+            mTextureId = mFullScreen.createTextureObject();
+        }
+
+        @Override
+        public void onSurfaceChanged(GL10 gl, int width, int height) {
+        }
+
+        @Override
+        public void onDrawFrame(GL10 gl) {
+            if (mSurfaceTexture == null) {
+                return;
+            }
+
+//            mSurfaceTexture.updateTexImage();
+//            mSurfaceTexture.getTransformMatrix(mSTMatrix);
+            mFullScreen.drawFrame(mTextureId, mSTMatrix);
+
+            if (mHasChange) {
+                GLES20.glEnable(GLES20.GL_SCISSOR_TEST);
+                GLES20.glScissor(0, 0, 100, 100);
+                GLES20.glClearColor(1.0f, 0.0f, 0.0f, 0.8f);
+                GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+                GLES20.glDisable(GLES20.GL_SCISSOR_TEST);
+            }
+        }
     }
 
     @Override
@@ -206,6 +288,8 @@ public class CameraCaptureActivity extends Activity
             }
         });
         Log.d(TAG, "onResume complete: " + this);
+
+        mGLViewNew.onResume();
     }
 
     @Override
@@ -220,6 +304,7 @@ public class CameraCaptureActivity extends Activity
             }
         });
         mGLView.onPause();
+        mGLViewNew.onPause();
         Log.d(TAG, "onPause complete");
     }
 
@@ -409,6 +494,8 @@ public class CameraCaptureActivity extends Activity
         // so it doesn't really matter.
         if (VERBOSE) Log.d(TAG, "ST onFrameAvailable");
         mGLView.requestRender();
+
+//        mGLViewNew.requestRender();
     }
 
     /**
@@ -476,7 +563,7 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
     private TextureMovieEncoder mVideoEncoder;
     private File mOutputFile;
 
-    private FullFrameRect mFullScreen;
+    private FullFrameRect mFullScreen, mFullFrameRect;
 
     private final float[] mSTMatrix = new float[16];
     private int mTextureId;
@@ -522,6 +609,38 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
         mNewFilter = CameraCaptureActivity.FILTER_NONE;
     }
 
+    private CameraCaptureActivity.SurfaceRenderer mSurfaceRenderer;
+    public void setRenderNew(CameraCaptureActivity.SurfaceRenderer renderNew) {
+        mSurfaceRenderer = renderNew;
+    }
+    private GLSurfaceView mGLSurfaceViewNew, mGLSurfaceView;
+
+    public void setGLSurfaceViewNew(GLSurfaceView view) {
+        mGLSurfaceViewNew = view;
+    }
+
+    public void setGLSurfaceView(GLSurfaceView view) {
+        mGLSurfaceView = view;
+    }
+
+    private boolean mHasChange;
+
+    public void setTarget() {
+        mHasChange = !mHasChange;
+    }
+
+    public FullFrameRect getFullScreen() {
+        return mFullScreen;
+    }
+
+    public SurfaceTexture getSurfaceTexture() {
+        return mSurfaceTexture;
+    }
+
+    public int getTextureId() {
+        return mTextureId;
+    }
+
     /**
      * Notifies the renderer thread that the activity is pausing.
      * <p>
@@ -538,6 +657,10 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
             mFullScreen = null;             //  to be destroyed
         }
         mIncomingWidth = mIncomingHeight = -1;
+
+        if (mMediaPlayer2 != null) {
+            mMediaPlayer2.stop();
+        }
     }
 
     /**
@@ -637,6 +760,14 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
         mIncomingSizeUpdated = true;
     }
 
+    FullFrameRect fullFrameRect;
+    SurfaceTexture surfaceTexture;
+    Surface surface;
+    int textureId;
+    float[] xxx = new float[16];
+    WindowSurface mWindowSurface;
+    MediaPlayer mMediaPlayer2;
+
     @Override
     public void onSurfaceCreated(GL10 unused, EGLConfig config) {
         Log.d(TAG, "onSurfaceCreated");
@@ -656,6 +787,9 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
         mFullScreen = new FullFrameRect(
                 new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT));
 
+        mFullFrameRect = new FullFrameRect(
+                new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT));
+
         mTextureId = mFullScreen.createTextureObject();
 
         // Create a SurfaceTexture, with an external texture, in this EGL context.  We don't
@@ -666,6 +800,31 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
         // Tell the UI thread to enable the camera preview.
         mCameraHandler.sendMessage(mCameraHandler.obtainMessage(
                 CameraCaptureActivity.CameraHandler.MSG_SET_SURFACE_TEXTURE, mSurfaceTexture));
+
+        mMediaPlayer2 = new MediaPlayer();
+        fullFrameRect = new FullFrameRect(new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT));
+        textureId = fullFrameRect.createTextureObject();
+        surfaceTexture = new SurfaceTexture(textureId);
+        surfaceTexture.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
+            @Override
+            public void onFrameAvailable(SurfaceTexture surfaceTexture) {
+//                mGLSurfaceViewNew.requestRender();
+            }
+        });
+        surface = new Surface(surfaceTexture);
+        mMediaPlayer2.setSurface(surface);
+        mMediaPlayer2.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+            @Override
+            public void onPrepared(MediaPlayer mp) {
+                mMediaPlayer2.start();
+            }
+        });
+        try {
+            mMediaPlayer2.setDataSource("/sdcard/DCIM/nani/zzz.mp4");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        mMediaPlayer2.prepareAsync();
     }
 
     @Override
@@ -681,7 +840,30 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
 
         // Latch the latest frame.  If there isn't anything new, we'll just re-use whatever
         // was there before.
+//        if (mHasChange) {
+//            surfaceTexture.updateTexImage();
+//        } else {
+//            mSurfaceTexture.updateTexImage();
+//        }
+
         mSurfaceTexture.updateTexImage();
+
+        if (mIncomingWidth <= 0 || mIncomingHeight <= 0) {
+            // Texture size isn't set yet.  This is only used for the filters, but to be
+            // safe we can just skip drawing while we wait for the various races to resolve.
+            // (This seems to happen if you toggle the screen off/on with power button.)
+            Log.i(TAG, "Drawing before incoming texture size set; skipping");
+            return;
+        }
+        // Update the filter, if necessary.
+        if (mCurrentFilter != mNewFilter) {
+            updateFilter();
+        }
+        if (mIncomingSizeUpdated) {
+            mFullScreen.getProgram().setTexSize(mIncomingWidth, mIncomingHeight);
+            mIncomingSizeUpdated = false;
+        }
+
 
         // If the recording state is changing, take care of it here.  Ideally we wouldn't
         // be doing all this in onDrawFrame(), but the EGLContext sharing with GLSurfaceView
@@ -692,7 +874,7 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
                     Log.d(TAG, "START recording");
                     // start recording
                     mVideoEncoder.startRecording(new TextureMovieEncoder.EncoderConfig(
-                            mOutputFile, 640, 480, 1000000, EGL14.eglGetCurrentContext()));
+                            mOutputFile, 720, 1280, 2000000, EGL14.eglGetCurrentContext()));
                     mRecordingStatus = RECORDING_ON;
                     break;
                 case RECORDING_RESUMED:
@@ -728,31 +910,59 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
         // we just do it here.
         //
         // TODO: be less lame.
-        mVideoEncoder.setTextureId(mTextureId);
+        mVideoEncoder.setTextureId(mTextureId, textureId);
 
         // Tell the video encoder thread that a new frame is available.
         // This will be ignored if we're not actually recording.
-        mVideoEncoder.frameAvailable(mSurfaceTexture);
+        mVideoEncoder.frameAvailable(mSurfaceTexture, surfaceTexture);
 
-        if (mIncomingWidth <= 0 || mIncomingHeight <= 0) {
-            // Texture size isn't set yet.  This is only used for the filters, but to be
-            // safe we can just skip drawing while we wait for the various races to resolve.
-            // (This seems to happen if you toggle the screen off/on with power button.)
-            Log.i(TAG, "Drawing before incoming texture size set; skipping");
-            return;
-        }
-        // Update the filter, if necessary.
-        if (mCurrentFilter != mNewFilter) {
-            updateFilter();
-        }
-        if (mIncomingSizeUpdated) {
-            mFullScreen.getProgram().setTexSize(mIncomingWidth, mIncomingHeight);
-            mIncomingSizeUpdated = false;
-        }
 
-        // Draw the video frame.
+//        if (mHasChange) {
+//            surfaceTexture.getTransformMatrix(xxx);
+//        } else {
+//            mSurfaceTexture.getTransformMatrix(mSTMatrix);
+//        }
+
         mSurfaceTexture.getTransformMatrix(mSTMatrix);
-        mFullScreen.drawFrame(mTextureId, mSTMatrix);
+
+        surfaceTexture.updateTexImage();
+        surfaceTexture.getTransformMatrix(xxx);
+
+//        mSurfaceRenderer.setHasChange(mHasChange);
+//        mSurfaceTexture.updateTexImage();
+//        mSurfaceTexture.getTransformMatrix(mSTMatrix);
+//        if (mHasChange) {
+//            mSurfaceRenderer.setParams(mFullFrameRect, mSTMatrix, mSurfaceTexture, mTextureId);
+//        } else {
+//            mFullFrameRect.drawFrame(mTextureId, mSTMatrix);
+//        }
+
+        if (mHasChange) {
+//            mSurfaceRenderer.setParams(mFullFrameRect, mSTMatrix, mSurfaceTexture, mTextureId);
+            GLES20.glViewport(0, 0, mGLSurfaceView.getWidth(), mGLSurfaceView.getHeight());
+            fullFrameRect.drawFrame(textureId, xxx);
+            GLES20.glViewport(100, 100, mGLSurfaceViewNew.getWidth(), mGLSurfaceViewNew.getHeight());
+            mFullScreen.drawFrame(mTextureId, mSTMatrix);
+
+//            mSurfaceTexture.updateTexImage();
+//            mSurfaceTexture.getTransformMatrix(mSTMatrix);
+//            GLES20.glViewport(100, 100, mGLSurfaceViewNew.getWidth(), mGLSurfaceViewNew.getHeight());
+//            mFullFrameRect.drawFrame(mTextureId, mSTMatrix);
+
+        } else {
+//            mSurfaceRenderer.setParams(fullFrameRect, xxx, surfaceTexture, textureId);
+
+            GLES20.glViewport(0, 0, mGLSurfaceView.getWidth(), mGLSurfaceView.getHeight());
+            mFullScreen.drawFrame(mTextureId, mSTMatrix);
+            GLES20.glViewport(100, 100, mGLSurfaceViewNew.getWidth(), mGLSurfaceViewNew.getHeight());
+            fullFrameRect.drawFrame(textureId, xxx);
+
+//            surfaceTexture.updateTexImage();
+//            surfaceTexture.getTransformMatrix(xxx);
+//            GLES20.glViewport(100, 100, mGLSurfaceViewNew.getWidth(), mGLSurfaceViewNew.getHeight());
+//            fullFrameRect.drawFrame(mTextureId, xxx);
+        }
+
 
         // Draw a flashing box if we're recording.  This only appears on screen.
         showBox = (mRecordingStatus == RECORDING_ON);

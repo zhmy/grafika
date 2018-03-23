@@ -32,6 +32,8 @@ import com.android.grafika.gles.WindowSurface;
 import java.io.File;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Encode a movie from frames rendered from an external texture image.
@@ -73,7 +75,7 @@ public class TextureMovieEncoder implements Runnable {
     private WindowSurface mInputWindowSurface;
     private EglCore mEglCore;
     private FullFrameRect mFullScreen;
-    private int mTextureId;
+    private int mTextureId, mTextureId2;
     private int mFrameNum;
     private VideoEncoderCore mVideoEncoder;
 
@@ -179,6 +181,12 @@ public class TextureMovieEncoder implements Runnable {
         mHandler.sendMessage(mHandler.obtainMessage(MSG_UPDATE_SHARED_CONTEXT, sharedContext));
     }
 
+    public class FrameData {
+        float[] transform;
+        int textureId;
+        long timestamp;
+    }
+
     /**
      * Tells the video recorder that a new frame is available.  (Call from non-encoder thread.)
      * <p>
@@ -192,28 +200,77 @@ public class TextureMovieEncoder implements Runnable {
      * before it calls updateTexImage().  The latter is preferred because we don't want to
      * stall the caller while this thread does work.
      */
-    public void frameAvailable(SurfaceTexture st) {
+    public void frameAvailable(SurfaceTexture... st) {
         synchronized (mReadyFence) {
             if (!mReady) {
                 return;
             }
         }
 
-        float[] transform = new float[16];      // TODO - avoid alloc every frame
-        st.getTransformMatrix(transform);
-        long timestamp = st.getTimestamp();
-        if (timestamp == 0) {
-            // Seeing this after device is toggled off/on with power button.  The
-            // first frame back has a zero timestamp.
-            //
-            // MPEG4Writer thinks this is cause to abort() in native code, so it's very
-            // important that we just ignore the frame.
-            Log.w(TAG, "HEY: got SurfaceTexture with timestamp of zero");
-            return;
-        }
+        if (st.length > 1) {
+            float[] transform = new float[16];      // TODO - avoid alloc every frame
+            st[0].getTransformMatrix(transform);
+            long timestamp = st[0].getTimestamp();
+            if (timestamp == 0) {
+                // Seeing this after device is toggled off/on with power button.  The
+                // first frame back has a zero timestamp.
+                //
+                // MPEG4Writer thinks this is cause to abort() in native code, so it's very
+                // important that we just ignore the frame.
+                Log.w(TAG, "HEY: got SurfaceTexture with timestamp of zero");
+                return;
+            }
 
-        mHandler.sendMessage(mHandler.obtainMessage(MSG_FRAME_AVAILABLE,
-                (int) (timestamp >> 32), (int) timestamp, transform));
+            float[] transform1 = new float[16];      // TODO - avoid alloc every frame
+            st[1].getTransformMatrix(transform1);
+            long timestamp1 = st[1].getTimestamp();
+            if (timestamp1 == 0) {
+                // Seeing this after device is toggled off/on with power button.  The
+                // first frame back has a zero timestamp.
+                //
+                // MPEG4Writer thinks this is cause to abort() in native code, so it's very
+                // important that we just ignore the frame.
+                Log.w(TAG, "HEY: got SurfaceTexture with timestamp of zero");
+                return;
+            }
+
+            FrameData data = new FrameData();
+            data.transform = transform;
+            data.timestamp = timestamp;
+            data.textureId = mTextureId;
+
+            FrameData data2 = new FrameData();
+            data2.transform = transform1;
+            data2.timestamp = timestamp1;
+            data2.textureId = mTextureId2;
+
+            List<FrameData> list = new ArrayList<>();
+            list.add(data);
+            list.add(data2);
+
+            mHandler.sendMessage(mHandler.obtainMessage(MSG_FRAME_AVAILABLE,1, 0, list));
+        } else {
+            float[] transform = new float[16];      // TODO - avoid alloc every frame
+            st[0].getTransformMatrix(transform);
+            long timestamp = st[0].getTimestamp();
+            if (timestamp == 0) {
+                // Seeing this after device is toggled off/on with power button.  The
+                // first frame back has a zero timestamp.
+                //
+                // MPEG4Writer thinks this is cause to abort() in native code, so it's very
+                // important that we just ignore the frame.
+                Log.w(TAG, "HEY: got SurfaceTexture with timestamp of zero");
+                return;
+            }
+            FrameData data = new FrameData();
+            data.transform = transform;
+            data.timestamp = timestamp;
+            data.textureId = mTextureId;
+            List<FrameData> list = new ArrayList<>();
+            list.add(data);
+
+            mHandler.sendMessage(mHandler.obtainMessage(MSG_FRAME_AVAILABLE,1, 0, list));
+        }
     }
 
     /**
@@ -222,13 +279,17 @@ public class TextureMovieEncoder implements Runnable {
      * <p>
      * TODO: do something less clumsy
      */
-    public void setTextureId(int id) {
+    public void setTextureId(int... id) {
         synchronized (mReadyFence) {
             if (!mReady) {
                 return;
             }
         }
-        mHandler.sendMessage(mHandler.obtainMessage(MSG_SET_TEXTURE_ID, id, 0, null));
+        if (id.length > 1) {
+            mHandler.sendMessage(mHandler.obtainMessage(MSG_SET_TEXTURE_ID, id[0], id[1], null));
+        } else {
+            mHandler.sendMessage(mHandler.obtainMessage(MSG_SET_TEXTURE_ID, id[0], 0, null));
+        }
     }
 
     /**
@@ -284,12 +345,10 @@ public class TextureMovieEncoder implements Runnable {
                     encoder.handleStopRecording();
                     break;
                 case MSG_FRAME_AVAILABLE:
-                    long timestamp = (((long) inputMessage.arg1) << 32) |
-                            (((long) inputMessage.arg2) & 0xffffffffL);
-                    encoder.handleFrameAvailable((float[]) obj, timestamp);
+                    encoder.handleFrameAvailable((List<FrameData>) obj);
                     break;
                 case MSG_SET_TEXTURE_ID:
-                    encoder.handleSetTexture(inputMessage.arg1);
+                    encoder.handleSetTexture(inputMessage.arg1, inputMessage.arg2);
                     break;
                 case MSG_UPDATE_SHARED_CONTEXT:
                     encoder.handleUpdateSharedContext((EGLContext) inputMessage.obj);
@@ -322,15 +381,27 @@ public class TextureMovieEncoder implements Runnable {
      * @param transform The texture transform, from SurfaceTexture.
      * @param timestampNanos The frame's timestamp, from SurfaceTexture.
      */
-    private void handleFrameAvailable(float[] transform, long timestampNanos) {
-        if (VERBOSE) Log.d(TAG, "handleFrameAvailable tr=" + transform);
+    private void handleFrameAvailable(List<FrameData> list) {
+//        if (VERBOSE) Log.d(TAG, "handleFrameAvailable tr=" + transform);
         mVideoEncoder.drainEncoder(false);
-        mFullScreen.drawFrame(mTextureId, transform);
+        if (list.size() == 1) {
+            mFullScreen.drawFrame(list.get(0).textureId, list.get(0).transform);
+            drawBox(mFrameNum++);
 
-        drawBox(mFrameNum++);
+            mInputWindowSurface.setPresentationTime(list.get(0).timestamp);
+            mInputWindowSurface.swapBuffers();
+        } else {
+            GLES20.glViewport(0, 0, mInputWindowSurface.getWidth(), mInputWindowSurface.getHeight());
+            mFullScreen.drawFrame(list.get(0).textureId, list.get(0).transform);
+            GLES20.glViewport(100, 100, 180, 300);
+            mFullScreen.drawFrame(list.get(1).textureId, list.get(1).transform);
 
-        mInputWindowSurface.setPresentationTime(timestampNanos);
-        mInputWindowSurface.swapBuffers();
+            drawBox(mFrameNum++);
+
+            mInputWindowSurface.setPresentationTime(list.get(0).timestamp);
+            mInputWindowSurface.swapBuffers();
+        }
+
     }
 
     /**
@@ -345,9 +416,12 @@ public class TextureMovieEncoder implements Runnable {
     /**
      * Sets the texture name that SurfaceTexture will use when frames are received.
      */
-    private void handleSetTexture(int id) {
+    private void handleSetTexture(int... id) {
         //Log.d(TAG, "handleSetTexture " + id);
-        mTextureId = id;
+        mTextureId = id[0];
+        if (id.length > 1) {
+            mTextureId2 = id[1];
+        }
     }
 
     /**

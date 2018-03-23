@@ -18,6 +18,9 @@ package com.android.grafika;
 
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
+import android.media.MediaPlayer;
+import android.opengl.EGL14;
+import android.opengl.EGLExt;
 import android.opengl.GLES20;
 import android.os.Bundle;
 import android.os.Handler;
@@ -82,6 +85,9 @@ public class ContinuousCaptureActivity extends Activity implements SurfaceHolder
 
     private MainHandler mHandler;
     private float mSecondsOfVideo;
+
+    private MediaPlayer mMediaPlayer;
+    private MediaPlayer mMediaPlayer2;
 
     /**
      * Custom message handler for main UI thread.
@@ -161,21 +167,122 @@ public class ContinuousCaptureActivity extends Activity implements SurfaceHolder
         }
     }
 
+    private SurfaceView sv;
+    private SurfaceView svNew;
+    private MyCallback mCallback = new MyCallback();
+    private boolean mHasChange;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_continuous_capture);
 
-        SurfaceView sv = (SurfaceView) findViewById(R.id.continuousCapture_surfaceView);
+        sv = (SurfaceView) findViewById(R.id.continuousCapture_surfaceView);
+        svNew = (SurfaceView) findViewById(R.id.continuousCapture_surfaceViewNew);
+//        svNew.getHolder().addCallback(mCallback);
+        svNew.setZOrderOnTop(true);
+        svNew.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mHasChange = !mHasChange;
+            }
+        });
+
         SurfaceHolder sh = sv.getHolder();
         sh.addCallback(this);
 
         mHandler = new MainHandler(this);
         mHandler.sendEmptyMessageDelayed(MainHandler.MSG_BLINK_TEXT, 1500);
 
-        mOutputFile = new File(getFilesDir(), "continuous-capture.mp4");
+        mOutputFile = new File("/sdcard/DCIM/zmy", "continuous-capture.mp4");
         mSecondsOfVideo = 0.0f;
         updateControls();
+
+        mMediaPlayer = new MediaPlayer();
+        mMediaPlayer2 = new MediaPlayer();
+    }
+
+    class MyCallback implements SurfaceHolder.Callback {
+        FullFrameRect mFullFrameRect;
+        EglCore mEglCoreNew;
+        WindowSurface mDisplaySurfaceNew, mDisplaySurfaceCopy;
+        SurfaceTexture mSurfaceTexture;
+        Surface mSurface;
+        float[] mtx = new float[16];
+        int textureId;
+
+        @Override
+        public void surfaceCreated(SurfaceHolder holder) {
+            mEglCoreNew = new EglCore(null, EglCore.FLAG_RECORDABLE);
+
+            mDisplaySurfaceNew = new WindowSurface(mEglCoreNew, holder.getSurface(), false);
+            mDisplaySurfaceNew.makeCurrent();
+
+            mFullFrameRect = new FullFrameRect(new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT));
+
+            textureId = mFullFrameRect.createTextureObject();
+            mSurfaceTexture = new SurfaceTexture(textureId);
+            mSurfaceTexture.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
+                @Override
+                public void onFrameAvailable(SurfaceTexture surfaceTexture) {
+//                    drawFrame(mDisplaySurfaceNew, mSurfaceTexture, mtx, mTextureId);
+
+                }
+            });
+            mSurface = new Surface(mSurfaceTexture);
+            mMediaPlayer.setSurface(mSurface);
+            mMediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+                @Override
+                public void onPrepared(MediaPlayer mp) {
+                    mMediaPlayer.start();
+                }
+            });
+            try {
+                mMediaPlayer.setDataSource("/sdcard/DCIM/nani/zzz.mp4");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            mMediaPlayer.prepareAsync();
+        }
+
+        @Override
+        public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+
+        }
+
+        @Override
+        public void surfaceDestroyed(SurfaceHolder holder) {
+
+        }
+
+        public void drawFrame(WindowSurface displaySurfaceCopy, SurfaceTexture surfaceTexture, float[] mtx2, int textureId1) {
+            displaySurfaceCopy.makeCurrent();
+//            mSurfaceTexture.updateTexImage();
+//            mSurfaceTexture.getTransformMatrix(mtx);
+
+            int viewWidth = svNew.getWidth();
+            int viewHeight = svNew.getHeight();
+            GLES20.glViewport(0, 0, viewWidth, viewHeight);
+            mFullFrameRect.drawFrame(textureId1, mtx2);
+
+
+
+            displaySurfaceCopy.swapBuffers();
+
+
+
+            mDisplaySurfaceNew.makeCurrent();
+            mSurfaceTexture.updateTexImage();
+            mSurfaceTexture.getTransformMatrix(mtx);
+            mFullFrameRect.drawFrame(textureId, mtx);
+
+//            mFullFrameRect.drawFrame(textureId1, mtx2);
+
+            mDisplaySurfaceNew.swapBuffers();
+
+
+
+        }
     }
 
     @Override
@@ -221,6 +328,13 @@ public class ContinuousCaptureActivity extends Activity implements SurfaceHolder
         if (mEglCore != null) {
             mEglCore.release();
             mEglCore = null;
+        }
+
+        if (mMediaPlayer != null) {
+            mMediaPlayer.pause();
+        }
+        if (mMediaPlayer2 != null) {
+            mMediaPlayer2.pause();
         }
         Log.d(TAG, "onPause() done");
     }
@@ -370,6 +484,12 @@ public class ContinuousCaptureActivity extends Activity implements SurfaceHolder
         updateControls();
     }
 
+    FullFrameRect fullFrameRect;
+    SurfaceTexture surfaceTexture;
+    Surface surface;
+    int textureId;
+    float[] xxx = new float[16];
+    WindowSurface mWindowSurface;
 
     @Override   // SurfaceHolder.Callback
     public void surfaceCreated(SurfaceHolder holder) {
@@ -393,6 +513,31 @@ public class ContinuousCaptureActivity extends Activity implements SurfaceHolder
         mCameraTexture.setOnFrameAvailableListener(this);
 
         startPreview();
+
+
+        fullFrameRect = new FullFrameRect(new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT));
+        textureId = fullFrameRect.createTextureObject();
+        surfaceTexture = new SurfaceTexture(textureId);
+        surfaceTexture.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
+            @Override
+            public void onFrameAvailable(SurfaceTexture surfaceTexture) {
+//                drawFrame();
+            }
+        });
+        surface = new Surface(surfaceTexture);
+        mMediaPlayer2.setSurface(surface);
+        mMediaPlayer2.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+            @Override
+            public void onPrepared(MediaPlayer mp) {
+                mMediaPlayer2.start();
+            }
+        });
+        try {
+            mMediaPlayer2.setDataSource("/sdcard/DCIM/nani/zzz.mp4");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        mMediaPlayer2.prepareAsync();
     }
 
     private void startPreview() {
@@ -470,16 +615,63 @@ public class ContinuousCaptureActivity extends Activity implements SurfaceHolder
 
         // Latch the next frame from the camera.
         mDisplaySurface.makeCurrent();
+
+        //two different textureid
         mCameraTexture.updateTexImage();
         mCameraTexture.getTransformMatrix(mTmpMatrix);
 
+        surfaceTexture.updateTexImage();
+        surfaceTexture.getTransformMatrix(xxx);
+
         // Fill the SurfaceView with it.
-        SurfaceView sv = (SurfaceView) findViewById(R.id.continuousCapture_surfaceView);
-        int viewWidth = sv.getWidth();
-        int viewHeight = sv.getHeight();
-        GLES20.glViewport(0, 0, viewWidth, viewHeight);
-        mFullFrameBlit.drawFrame(mTextureId, mTmpMatrix);
-        drawExtra(mFrameNum, viewWidth, viewHeight);
+        if (mHasChange) {
+            GLES20.glViewport(0, 0, sv.getWidth(), sv.getHeight());
+            fullFrameRect.drawFrame(textureId, xxx);
+            GLES20.glViewport(100, 100, svNew.getWidth(), svNew.getHeight());
+            mFullFrameBlit.drawFrame(mTextureId, mTmpMatrix);
+        } else {
+            GLES20.glViewport(0, 0, sv.getWidth(), sv.getHeight());
+            mFullFrameBlit.drawFrame(mTextureId, mTmpMatrix);
+            GLES20.glViewport(100, 100, svNew.getWidth(), svNew.getHeight());
+            fullFrameRect.drawFrame(textureId, xxx);
+        }
+
+//        surfaceTexture.updateTexImage();
+//        surfaceTexture.getTransformMatrix(xxx);
+//        GLES20.glViewport(100, 100, svNew.getWidth(), svNew.getHeight());
+//        fullFrameRect.drawFrame(mTextureId, xxx);
+
+
+        //same textureid 问题：播放器播放完成的时候，不会渲染，或者渲染成了之前的图像
+//        if (mHasChange) {
+//            if (mMediaPlayer2.isPlaying()) {
+//                surfaceTexture.updateTexImage();
+//                surfaceTexture.getTransformMatrix(xxx);
+//                GLES20.glViewport(0, 0, sv.getWidth(), sv.getHeight());
+//                fullFrameRect.drawFrame(mTextureId, xxx);
+//            }
+//            mCameraTexture.updateTexImage();
+//            mCameraTexture.getTransformMatrix(mTmpMatrix);
+//            GLES20.glViewport(100, 100, svNew.getWidth(), svNew.getHeight());
+//            mFullFrameBlit.drawFrame(mTextureId, mTmpMatrix);
+//        } else {
+//            mCameraTexture.updateTexImage();
+//            mCameraTexture.getTransformMatrix(mTmpMatrix);
+//            GLES20.glViewport(0, 0, sv.getWidth(), sv.getHeight());
+//            mFullFrameBlit.drawFrame(mTextureId, mTmpMatrix);
+//            if (mMediaPlayer2.isPlaying()) {
+//                surfaceTexture.updateTexImage();
+//                surfaceTexture.getTransformMatrix(xxx);
+//                GLES20.glViewport(100, 100, svNew.getWidth(), svNew.getHeight());
+//                fullFrameRect.drawFrame(mTextureId, xxx);
+//            }
+//        }
+
+        //third : different surface
+
+//        drawExtra(mFrameNum, viewWidth, viewHeight);
+
+
         mDisplaySurface.swapBuffers();
 
         // Send it to the video encoder.
