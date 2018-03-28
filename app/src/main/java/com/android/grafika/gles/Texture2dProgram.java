@@ -60,8 +60,9 @@ public class Texture2dProgram {
             "precision mediump float;\n" +
             "varying vec2 vTextureCoord;\n" +
             "uniform samplerExternalOES sTexture;\n" +
+            "uniform float alpha;\n" +
             "void main() {\n" +
-            "    gl_FragColor = texture2D(sTexture, vTextureCoord);\n" +
+            "    gl_FragColor = texture2D(sTexture, vTextureCoord)*alpha;\n" +
             "}\n";
 
     // Fragment shader that converts color to black & white with a simple transformation.
@@ -330,6 +331,7 @@ public class Texture2dProgram {
             GLES20.glUniform1f(muColorAdjustLoc, mColorAdjust);
         }
 
+        onDrawArraysPre();
         // Draw the rect.
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, firstVertex, vertexCount);
         GlUtil.checkGlError("glDrawArrays");
@@ -339,5 +341,15 @@ public class Texture2dProgram {
         GLES20.glDisableVertexAttribArray(maTextureCoordLoc);
         GLES20.glBindTexture(mTextureTarget, 0);
         GLES20.glUseProgram(0);
+    }
+
+    private float mAlpha = 1.0f;
+
+    public void setAlpha(float alpha) {
+        mAlpha = alpha;
+    }
+
+    public void onDrawArraysPre() {
+        GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgramHandle, "alpha"), mAlpha);
     }
 }

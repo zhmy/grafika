@@ -49,6 +49,15 @@ public class MainActivity extends ListActivity {
      * the activity class.
      */
     private static final String[][] TESTS = {
+        {"* funimate alpha effect",
+                    "funimate alpha effect test",
+                    "FunimateAlphaActivity"},
+        {"* funimate slide effect",
+                    "funimate slide effect test",
+                    "FunimateSlideActivity"},
+        {"* effect and effect",
+                    "effect test",
+                    "EffectActivity"},
         { "* Play video (TextureView)",
             "Plays .mp4 videos created by Grafika",
             "PlayMovieActivity" },

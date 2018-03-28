@@ -88,4 +88,8 @@ public class FullFrameRect {
                 texMatrix, mRectDrawable.getTexCoordArray(), textureId,
                 mRectDrawable.getTexCoordStride());
     }
+
+    public void setAlpha(float alpha) {
+        mProgram.setAlpha(alpha);
+    }
 }
