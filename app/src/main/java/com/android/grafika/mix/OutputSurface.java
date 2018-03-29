@@ -20,8 +20,11 @@ public class OutputSurface implements SurfaceTexture.OnFrameAvailableListener {
     private Object mFrameSyncObject2 = new Object();     // guards mFrameAvailable
     private boolean mFrameAvailable;
     private boolean mFrameAvailable2;
+    private int mVideoWidth, mVideoHeight;
 
-    public OutputSurface() {
+    public OutputSurface(int videoWidth, int videoHeight) {
+        mVideoWidth = videoWidth;
+        mVideoHeight = videoHeight;
         setup();
     }
 
@@ -83,11 +86,21 @@ public class OutputSurface implements SurfaceTexture.OnFrameAvailableListener {
     }
 
     float alpha = 0.0f;
+
     public void drawImage(int curPos) {
-        mSurfaceTexture.updateTexImage();
-        mSurfaceTexture.getTransformMatrix(mSTMatrix);
-        mFullScreenFUDisplay.setAlpha(1);
-        mFullScreenFUDisplay.drawFrame(mTextureId, mSTMatrix);
+        if (curPos >= 3000 && curPos < 6000) {
+            mSurfaceTexture.getTransformMatrix(mSTMatrix);
+            GLES20.glViewport(0, 0, mVideoWidth / 2, mVideoHeight / 2);
+            mFullScreenFUDisplay.drawFrame(mTextureId, mSTMatrix);
+
+            GLES20.glViewport(mVideoWidth / 2, mVideoHeight / 2, mVideoWidth / 2, mVideoHeight / 2);
+            mFullScreenFUDisplay.drawFrame(mTextureId, mSTMatrix);
+        } else {
+            mSurfaceTexture.getTransformMatrix(mSTMatrix);
+            mFullScreenFUDisplay.setAlpha(1);
+            GLES20.glViewport(0, 0, mVideoWidth, mVideoHeight);
+            mFullScreenFUDisplay.drawFrame(mTextureId, mSTMatrix);
+        }
     }
 
     public void drawImage2(int curPos) {
@@ -99,15 +112,19 @@ public class OutputSurface implements SurfaceTexture.OnFrameAvailableListener {
             if (alpha > 1) {
                 alpha = 1;
             }
-
-            mSurfaceTexture2.updateTexImage();
             mSurfaceTexture2.getTransformMatrix(mSTMatrix2);
             mFullScreenFUDisplay.setAlpha(alpha);
+            GLES20.glViewport(0, 0, mVideoWidth, mVideoHeight);
             mFullScreenFUDisplay.drawFrame(mTextureId2, mSTMatrix2);
 
             GLES20.glDisable(GLES20.GL_BLEND);
+        } else if (curPos >= 3000 && curPos < 6000) {
+            mSurfaceTexture2.getTransformMatrix(mSTMatrix2);
+            GLES20.glViewport(mVideoWidth / 2, 0, mVideoWidth / 2, mVideoHeight / 2);
+            mFullScreenFUDisplay.drawFrame(mTextureId2, mSTMatrix2);
+            GLES20.glViewport(0, mVideoHeight / 2, mVideoWidth / 2, mVideoHeight / 2);
+            mFullScreenFUDisplay.drawFrame(mTextureId2, mSTMatrix2);
         }
-
     }
 
     public Surface getSurface() {

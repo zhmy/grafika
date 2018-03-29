@@ -147,7 +147,7 @@ public class FunimateAlphaActivity extends Activity {
             //init video 1 encoder and decoder end
 
             // Create a MediaCodec for the decoder, based on the extractor's format.
-            outputSurface = new OutputSurface();
+            outputSurface = new OutputSurface(videoWidth, videoHeight);
             videoDecoder1 = createVideoDecoder(inputVideoFormat, outputSurface.getSurface());
 
             //init video 2 encoder and decoder start
@@ -308,7 +308,7 @@ public class FunimateAlphaActivity extends Activity {
                     if (render) {
                         outputSurface.awaitNewImage2();
                         // Edit the frame and send it to the encoder.
-                        outputSurface.drawImage2((int) (videoDecoderOutputBufferInfo2.presentationTimeUs / 1000));
+                        outputSurface.drawImage2((int) (videoDecoderOutputBufferInfo.presentationTimeUs / 1000));
 //                        inputSurface.setPresentationTime(
 //                                videoDecoderOutputBufferInfo2.presentationTimeUs * 1000);
                         inputSurface.swapBuffers();
