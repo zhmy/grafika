@@ -131,6 +131,8 @@ public class FunimateAlphaActivity extends Activity {
 
             int videoWidth = inputVideoFormat.getInteger(MediaFormat.KEY_WIDTH);
             int videoHeight = inputVideoFormat.getInteger(MediaFormat.KEY_HEIGHT);
+            int fps1 = inputVideoFormat.getInteger(MediaFormat.KEY_FRAME_RATE);
+
 
             //init outputVideoFormat
             MediaFormat outputVideoFormat = MediaFormat.createVideoFormat(OUTPUT_VIDEO_MIME_TYPE, videoWidth, videoHeight);
@@ -157,7 +159,8 @@ public class FunimateAlphaActivity extends Activity {
             int videoInputTrack2 = getAndSelectVideoTrackIndex(videoExtractor2);
             MediaFormat inputVideoFormat2 = videoExtractor2.getTrackFormat(videoInputTrack2);
             videoDecoder2 = createVideoDecoder(inputVideoFormat2, outputSurface.getSurface2());
-
+            int fps2 = inputVideoFormat2.getInteger(MediaFormat.KEY_FRAME_RATE);
+            Log.e("zmy", "fps1 : " + fps1 + " fps2 : " + fps2);
 
             ByteBuffer[] videoDecoderInputBuffers = null;
             ByteBuffer[] videoDecoderInputBuffers2 = null;
@@ -191,7 +194,7 @@ public class FunimateAlphaActivity extends Activity {
             boolean videoEncoderDone = false;
 
             boolean addTrack = false;
-
+            int i = 0;
             while (!videoEncoderDone) {
                 // Extract video from file and feed to decoder.
                 // Do not extract video if we have determined the output format but we are not yet
@@ -216,25 +219,7 @@ public class FunimateAlphaActivity extends Activity {
                     break;
                 }
 
-                while (!videoExtractorDone2) {
-                    int decoderInputBufferIndex = videoDecoder2.dequeueInputBuffer(10000);
-                    if (decoderInputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                        break;
-                    }
-                    ByteBuffer decoderInputBuffer = videoDecoderInputBuffers2[decoderInputBufferIndex];
-                    int size = videoExtractor2.readSampleData(decoderInputBuffer, 0);
-                    long presentationTime = videoExtractor2.getSampleTime();
-                    if (size >= 0) {
-                        videoDecoder2.queueInputBuffer(decoderInputBufferIndex, 0, size,
-                                presentationTime, videoExtractor2.getSampleFlags());
-                    }
-                    videoExtractorDone2 = !videoExtractor2.advance();
-                    if (videoExtractorDone2) {
-                        videoDecoder2.queueInputBuffer(decoderInputBufferIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM);
-                    }
-                    // We extracted a frame, let's try something else next.
-                    break;
-                }
+
 
 
 //                 Poll output frames from the video decoder and feed the encoder.
@@ -267,9 +252,10 @@ public class FunimateAlphaActivity extends Activity {
                         outputSurface.awaitNewImage();
                         // Edit the frame and send it to the encoder.
                         outputSurface.drawImage((int) (videoDecoderOutputBufferInfo.presentationTimeUs / 1000));
-//                        inputSurface.setPresentationTime(
-//                                videoDecoderOutputBufferInfo.presentationTimeUs * 1000);
-//                        inputSurface.swapBuffers();
+
+                        inputSurface.setPresentationTime(
+                                videoDecoderOutputBufferInfo.presentationTimeUs * 1000);
+                        inputSurface.swapBuffers();
                     }
                     if ((videoDecoderOutputBufferInfo.flags
                             & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
@@ -277,49 +263,63 @@ public class FunimateAlphaActivity extends Activity {
                         videoEncoder1.signalEndOfInputStream();
                     }
                     // We extracted a pending frame, let's try something else next.
+                    i++;
                     break;
                 }
 
-                while (!videoDecoderDone2) {
-                    int decoderOutputBufferIndex =
-                            videoDecoder2.dequeueOutputBuffer(
-                                    videoDecoderOutputBufferInfo2, 10000);
-                    if (decoderOutputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                        break;
-                    }
-                    if (decoderOutputBufferIndex == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
-                        videoDecoderOutputBuffers2 = videoDecoder2.getOutputBuffers();
-                        break;
-                    }
-                    if (decoderOutputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                        decoderOutputVideoFormat = videoDecoder2.getOutputFormat();
+                if (i % (fps1 / fps2) != 0) {
+                    while (!videoExtractorDone2) {
+                        int decoderInputBufferIndex = videoDecoder2.dequeueInputBuffer(10000);
+                        if (decoderInputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
+                            break;
+                        }
+                        ByteBuffer decoderInputBuffer = videoDecoderInputBuffers2[decoderInputBufferIndex];
+                        int size = videoExtractor2.readSampleData(decoderInputBuffer, 0);
+                        long presentationTime = videoExtractor2.getSampleTime();
+                        if (size >= 0) {
+                            videoDecoder2.queueInputBuffer(decoderInputBufferIndex, 0, size,
+                                    presentationTime, videoExtractor2.getSampleFlags());
+                        }
+                        videoExtractorDone2 = !videoExtractor2.advance();
+                        if (videoExtractorDone2) {
+                            videoDecoder2.queueInputBuffer(decoderInputBufferIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM);
+                        }
+                        // We extracted a frame, let's try something else next.
                         break;
                     }
 
-                    ByteBuffer decoderOutputBuffer =
-                            videoDecoderOutputBuffers2[decoderOutputBufferIndex];
-                    if ((videoDecoderOutputBufferInfo2.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG)
-                            != 0) {
-                        videoDecoder2.releaseOutputBuffer(decoderOutputBufferIndex, false);
+                    while (!videoDecoderDone2) {
+                        int decoderOutputBufferIndex =
+                                videoDecoder2.dequeueOutputBuffer(
+                                        videoDecoderOutputBufferInfo2, 10000);
+                        if (decoderOutputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
+                            break;
+                        }
+                        if (decoderOutputBufferIndex == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
+                            videoDecoderOutputBuffers2 = videoDecoder2.getOutputBuffers();
+                            break;
+                        }
+                        if (decoderOutputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                            decoderOutputVideoFormat = videoDecoder2.getOutputFormat();
+                            break;
+                        }
+
+                        ByteBuffer decoderOutputBuffer =
+                                videoDecoderOutputBuffers2[decoderOutputBufferIndex];
+                        if ((videoDecoderOutputBufferInfo2.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG)
+                                != 0) {
+                            videoDecoder2.releaseOutputBuffer(decoderOutputBufferIndex, false);
+                            break;
+                        }
+                        boolean render = videoDecoderOutputBufferInfo2.size != 0;
+                        videoDecoder2.releaseOutputBuffer(decoderOutputBufferIndex, render);
+                        if ((videoDecoderOutputBufferInfo2.flags
+                                & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                            videoDecoderDone2 = true;
+                        }
+                        // We extracted a pending frame, let's try something else next.
                         break;
                     }
-                    boolean render = videoDecoderOutputBufferInfo2.size != 0;
-                    videoDecoder2.releaseOutputBuffer(decoderOutputBufferIndex, render);
-                    if (render) {
-                        outputSurface.awaitNewImage2();
-                        // Edit the frame and send it to the encoder.
-                        outputSurface.drawImage2((int) (videoDecoderOutputBufferInfo.presentationTimeUs / 1000));
-//                        inputSurface.setPresentationTime(
-//                                videoDecoderOutputBufferInfo2.presentationTimeUs * 1000);
-                        inputSurface.swapBuffers();
-                    }
-                    if ((videoDecoderOutputBufferInfo2.flags
-                            & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
-                        videoDecoderDone2 = true;
-                        videoEncoder1.signalEndOfInputStream();
-                    }
-                    // We extracted a pending frame, let's try something else next.
-                    break;
                 }
 
                 // Poll frames from the video encoder and send them to the muxer.
@@ -403,6 +403,21 @@ public class FunimateAlphaActivity extends Activity {
             try {
                 if (inputSurface != null) {
                     inputSurface.release();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            try {
+                if (videoExtractor2 != null) {
+                    videoExtractor2.release();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            try {
+                if (videoDecoder2 != null) {
+                    videoDecoder2.stop();
+                    videoDecoder2.release();
                 }
             } catch (Exception e) {
                 e.printStackTrace();

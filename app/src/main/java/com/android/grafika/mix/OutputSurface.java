@@ -49,26 +49,8 @@ public class OutputSurface implements SurfaceTexture.OnFrameAvailableListener {
         mSurfaceTexture2 = new SurfaceTexture(mTextureId2);
         mSurface = new Surface(mSurfaceTexture);
         mSurface2 = new Surface(mSurfaceTexture2);
-        mSurfaceTexture.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
-            @Override
-            public void onFrameAvailable(SurfaceTexture surfaceTexture) {
-                if (VERBOSE) Log.d(TAG, "new frame available");
-                synchronized (mFrameSyncObject) {
-                    mFrameAvailable = true;
-                    mFrameSyncObject.notifyAll();
-                }
-            }
-        });
-        mSurfaceTexture2.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
-            @Override
-            public void onFrameAvailable(SurfaceTexture surfaceTexture) {
-                if (VERBOSE) Log.d(TAG, "new frame available");
-                synchronized (mFrameSyncObject2) {
-                    mFrameAvailable2 = true;
-                    mFrameSyncObject2.notifyAll();
-                }
-            }
-        });
+        mSurfaceTexture.setOnFrameAvailableListener(this);
+        mSurfaceTexture2.setOnFrameAvailableListener(this);
     }
 
     public void release() {
@@ -101,9 +83,7 @@ public class OutputSurface implements SurfaceTexture.OnFrameAvailableListener {
             GLES20.glViewport(0, 0, mVideoWidth, mVideoHeight);
             mFullScreenFUDisplay.drawFrame(mTextureId, mSTMatrix);
         }
-    }
 
-    public void drawImage2(int curPos) {
         if (curPos > 1000 && curPos < 3000) {
             GLES20.glDisable(GLES20.GL_DEPTH_TEST);
             GLES20.glEnable(GLES20.GL_BLEND);
@@ -151,26 +131,8 @@ public class OutputSurface implements SurfaceTexture.OnFrameAvailableListener {
         // Latch the data.
         checkGlError("before updateTexImage");
         mSurfaceTexture.updateTexImage();
-    }
-
-    public void awaitNewImage2() {
-        final int TIMEOUT_MS = 5000;
-        synchronized (mFrameSyncObject2) {
-            while (!mFrameAvailable2) {
-                try {
-                    // Wait for onFrameAvailable() to signal us.  Use a timeout to avoid
-                    // stalling the test if it doesn't arrive.
-                    mFrameSyncObject2.wait(TIMEOUT_MS);
-                } catch (InterruptedException e) {
-                }
-            }
-            mFrameAvailable2 = false;
-        }
-        // Latch the data.
-        checkGlError("before updateTexImage");
         mSurfaceTexture2.updateTexImage();
     }
-
 
     @Override
     public void onFrameAvailable(SurfaceTexture st) {
