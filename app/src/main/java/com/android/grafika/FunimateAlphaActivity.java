@@ -22,6 +22,7 @@ import android.util.Log;
 import android.view.Surface;
 import android.view.View;
 import android.widget.ProgressBar;
+import android.widget.SeekBar;
 import android.widget.Toast;
 
 import com.android.grafika.effect.BaseEffect;
@@ -45,6 +46,7 @@ public class FunimateAlphaActivity extends Activity {
     GLSurfaceView mGLSurfaceView;
     String video1, video2;
     SurfaceRender mRender;
+    SeekBar mSeekBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,6 +54,29 @@ public class FunimateAlphaActivity extends Activity {
         setContentView(R.layout.activity_funimate_alpha);
         mGLSurfaceView = findViewById(R.id.surfaceView);
         mGLSurfaceView.setEGLContextClientVersion(2);
+        mSeekBar = findViewById(R.id.seek);
+        mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (mRender != null) {
+                    mRender.seekTo(progress);
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                if (mRender != null) {
+                    mRender.pause();
+                }
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                if (mRender != null) {
+                    mRender.start();
+                }
+            }
+        });
 
         video1 = "/sdcard/DCIM/nani/zzz.mp4";
         video2 = "/sdcard/DCIM/nani/yyy.mp4";
@@ -504,6 +529,32 @@ public class FunimateAlphaActivity extends Activity {
             }
             if (mMediaPlayer2 != null) {
                 mMediaPlayer2.pause();
+            }
+        }
+
+        public void seekTo(int progress) {
+            if (mMediaPlayer1 != null) {
+                int seekPosition = (int) ((progress * 1.0f / 100) * mMediaPlayer1.getDuration());
+                mMediaPlayer1.seekTo(seekPosition);
+            }
+            pause();
+        }
+
+        public void pause() {
+            if (mMediaPlayer1 != null) {
+                mMediaPlayer1.pause();
+            }
+            if (mMediaPlayer2 != null) {
+                mMediaPlayer2.pause();
+            }
+        }
+
+        public void start() {
+            if (mMediaPlayer1 != null) {
+                mMediaPlayer1.start();
+            }
+            if (mMediaPlayer2 != null) {
+                mMediaPlayer2.start();
             }
         }
 

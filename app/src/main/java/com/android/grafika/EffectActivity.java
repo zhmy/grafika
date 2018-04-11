@@ -1,6 +1,7 @@
 package com.android.grafika;
 
 import android.app.Activity;
+import android.graphics.PixelFormat;
 import android.graphics.SurfaceTexture;
 import android.media.MediaPlayer;
 import android.opengl.GLES20;
@@ -33,9 +34,11 @@ public class EffectActivity extends Activity {
         setContentView(R.layout.activity_funimate_effect);
         mGLSurfaceView = findViewById(R.id.surfaceView);
         mGLSurfaceView.setEGLContextClientVersion(2);
+//        mGLSurfaceView.setEGLConfigChooser(8, 8, 8, 8, 16, 0);
+//        mGLSurfaceView.getHolder().setFormat(PixelFormat.TRANSLUCENT);
 
         video1 = "/sdcard/DCIM/nani/zzz.mp4";
-        video2 = "/sdcard/DCIM/nani/yyy.mp4";
+        video2 = "/sdcard/DCIM/nani/zmy111.mp4";
 
         mRender = new SurfaceRender();
         mGLSurfaceView.setRenderer(mRender);
@@ -85,7 +88,7 @@ public class EffectActivity extends Activity {
                     new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_2D));
 
             mFullScreen1 = new FullFrameRect(
-                    new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT));
+                    new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT_2));
 
             mFullScreen2 = new FullFrameRect(
                     new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT));
@@ -135,6 +138,7 @@ public class EffectActivity extends Activity {
             mMediaPlayer2.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
                 @Override
                 public void onPrepared(MediaPlayer mp) {
+                    mMediaPlayer2.setLooping(true);
                     mMediaPlayer2.start();
                 }
             });
@@ -161,17 +165,33 @@ public class EffectActivity extends Activity {
 
         @Override
         public void onDrawFrame(GL10 gl) {
-            if (effect.startTime <= mMediaPlayer1.getCurrentPosition() && effect.endTime > mMediaPlayer1.getCurrentPosition()) {
-                float timePercentage = ((mMediaPlayer1.getCurrentPosition() - effect.startTime) % effect.duration) / (1.0f * (effect.duration));
-                Log.e("zmy", "timePercentage : "+timePercentage);
+//            if (effect.startTime <= mMediaPlayer1.getCurrentPosition() && effect.endTime > mMediaPlayer1.getCurrentPosition()) {
+//                float timePercentage = ((mMediaPlayer1.getCurrentPosition() - effect.startTime) % effect.duration) / (1.0f * (effect.duration));
+//                Log.e("zmy", "timePercentage : "+timePercentage);
+//
+//                int texture2DId = 0;
+//                GLEffectUtil.applGLEffect(mTextureId1, GLEffectUtil.DEFAULT_GL_CUBE_BUFFER, GLEffectUtil.DEFAULT_GL_TEXTURE_BUFFER, mSTMatrix1, effect, timePercentage);
+//            } else {
+//
+//            }
 
-                int texture2DId = 0;
-                GLEffectUtil.applGLEffect(mTextureId1, GLEffectUtil.DEFAULT_GL_CUBE_BUFFER, GLEffectUtil.DEFAULT_GL_TEXTURE_BUFFER, mSTMatrix1, effect, timePercentage);
-            } else {
-                mSurfaceTexture1.updateTexImage();
-                mSurfaceTexture1.getTransformMatrix(mSTMatrix1);
-                mFullScreen1.drawFrame(mTextureId1, mSTMatrix1);
-            }
+            GLES20.glDisable(GLES20.GL_DEPTH_TEST);
+            GLES20.glEnable(GLES20.GL_BLEND);
+            GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
+
+            mSurfaceTexture1.updateTexImage();
+            mSurfaceTexture1.getTransformMatrix(mSTMatrix1);
+            GLES20.glViewport(0, 0, mGLSurfaceView.getWidth(), mGLSurfaceView.getHeight());
+            mFullScreen1.setAlpha(1);
+            mFullScreen1.drawFrame(mTextureId1, mSTMatrix1);
+
+            mSurfaceTexture2.updateTexImage();
+            mSurfaceTexture2.getTransformMatrix(mSTMatrix2);
+//            GLES20.glViewport(0, 0, mGLSurfaceView.getWidth()/2, mGLSurfaceView.getHeight()/2);
+            mFullScreen1.setAlpha(0);
+            mFullScreen1.drawFrame(mTextureId2, mSTMatrix2);
+
+            GLES20.glDisable(GLES20.GL_BLEND);
         }
     }
 }
