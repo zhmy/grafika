@@ -38,7 +38,7 @@ public class EffectActivity extends Activity {
 //        mGLSurfaceView.getHolder().setFormat(PixelFormat.TRANSLUCENT);
 
         video1 = "/sdcard/DCIM/nani/zzz.mp4";
-        video2 = "/sdcard/DCIM/nani/zmy111.mp4";
+        video2 = "/sdcard/DCIM/nani/zmy444.mp4";
 
         mRender = new SurfaceRender();
         mGLSurfaceView.setRenderer(mRender);
@@ -88,7 +88,7 @@ public class EffectActivity extends Activity {
                     new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_2D));
 
             mFullScreen1 = new FullFrameRect(
-                    new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT_2));
+                    new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT));
 
             mFullScreen2 = new FullFrameRect(
                     new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT));
@@ -177,7 +177,8 @@ public class EffectActivity extends Activity {
 
             GLES20.glDisable(GLES20.GL_DEPTH_TEST);
             GLES20.glEnable(GLES20.GL_BLEND);
-            GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
+            GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE);
+//            GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
 
             mSurfaceTexture1.updateTexImage();
             mSurfaceTexture1.getTransformMatrix(mSTMatrix1);
@@ -188,7 +189,7 @@ public class EffectActivity extends Activity {
             mSurfaceTexture2.updateTexImage();
             mSurfaceTexture2.getTransformMatrix(mSTMatrix2);
 //            GLES20.glViewport(0, 0, mGLSurfaceView.getWidth()/2, mGLSurfaceView.getHeight()/2);
-            mFullScreen1.setAlpha(0);
+            mFullScreen1.setAlpha(1);
             mFullScreen1.drawFrame(mTextureId2, mSTMatrix2);
 
             GLES20.glDisable(GLES20.GL_BLEND);

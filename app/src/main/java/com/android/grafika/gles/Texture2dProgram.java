@@ -76,7 +76,7 @@ public class Texture2dProgram {
                     "void main() {\n" +
                     "    vec4 color;\n" +
                     "    color = texture2D(sTexture, vTextureCoord);\n" +
-                    "    if (color.r<0.1 && color.g<0.1 && color.b<0.1){\n" +
+                    "    if (color.r<0.5 && color.g>0.5 && color.b<0.5){\n" +
                     "    color.a = alpha;\n" +
                     "    }\n" +
                     "    gl_FragColor = color;\n" +
