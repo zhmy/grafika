@@ -391,15 +391,21 @@ public class TextureMovieEncoder implements Runnable {
             mInputWindowSurface.setPresentationTime(list.get(0).timestamp);
             mInputWindowSurface.swapBuffers();
         } else {
+            GLES20.glDisable(GLES20.GL_DEPTH_TEST);
+            GLES20.glEnable(GLES20.GL_BLEND);
+            GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE);
+
             GLES20.glViewport(0, 0, mInputWindowSurface.getWidth(), mInputWindowSurface.getHeight());
             mFullScreen.drawFrame(list.get(0).textureId, list.get(0).transform);
-            GLES20.glViewport(100, 100, 180, 300);
+//            GLES20.glViewport(100, 100, 180, 300);
             mFullScreen.drawFrame(list.get(1).textureId, list.get(1).transform);
 
+            GLES20.glDisable(GLES20.GL_BLEND);
             drawBox(mFrameNum++);
 
             mInputWindowSurface.setPresentationTime(list.get(0).timestamp);
             mInputWindowSurface.swapBuffers();
+
         }
 
     }

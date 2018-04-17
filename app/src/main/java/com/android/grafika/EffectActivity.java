@@ -38,7 +38,7 @@ public class EffectActivity extends Activity {
 //        mGLSurfaceView.getHolder().setFormat(PixelFormat.TRANSLUCENT);
 
         video1 = "/sdcard/DCIM/nani/zzz.mp4";
-        video2 = "/sdcard/DCIM/nani/zmy444.mp4";
+        video2 = "/sdcard/DCIM/nani/zmy222.mp4";
 
         mRender = new SurfaceRender();
         mGLSurfaceView.setRenderer(mRender);

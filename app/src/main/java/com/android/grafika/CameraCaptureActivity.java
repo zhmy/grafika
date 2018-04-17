@@ -820,7 +820,7 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
             }
         });
         try {
-            mMediaPlayer2.setDataSource("/sdcard/DCIM/nani/zzz.mp4");
+            mMediaPlayer2.setDataSource("/sdcard/DCIM/nani/zmy444.mp4");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -837,6 +837,10 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
     public void onDrawFrame(GL10 unused) {
         if (VERBOSE) Log.d(TAG, "onDrawFrame tex=" + mTextureId);
         boolean showBox = false;
+
+        GLES20.glDisable(GLES20.GL_DEPTH_TEST);
+        GLES20.glEnable(GLES20.GL_BLEND);
+        GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE);
 
         // Latch the latest frame.  If there isn't anything new, we'll just re-use whatever
         // was there before.
@@ -941,7 +945,7 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
 //            mSurfaceRenderer.setParams(mFullFrameRect, mSTMatrix, mSurfaceTexture, mTextureId);
             GLES20.glViewport(0, 0, mGLSurfaceView.getWidth(), mGLSurfaceView.getHeight());
             fullFrameRect.drawFrame(textureId, xxx);
-            GLES20.glViewport(100, 100, mGLSurfaceViewNew.getWidth(), mGLSurfaceViewNew.getHeight());
+//            GLES20.glViewport(100, 100, mGLSurfaceViewNew.getWidth(), mGLSurfaceViewNew.getHeight());
             mFullScreen.drawFrame(mTextureId, mSTMatrix);
 
 //            mSurfaceTexture.updateTexImage();
@@ -954,7 +958,7 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
 
             GLES20.glViewport(0, 0, mGLSurfaceView.getWidth(), mGLSurfaceView.getHeight());
             mFullScreen.drawFrame(mTextureId, mSTMatrix);
-            GLES20.glViewport(100, 100, mGLSurfaceViewNew.getWidth(), mGLSurfaceViewNew.getHeight());
+//            GLES20.glViewport(100, 100, mGLSurfaceViewNew.getWidth(), mGLSurfaceViewNew.getHeight());
             fullFrameRect.drawFrame(textureId, xxx);
 
 //            surfaceTexture.updateTexImage();
@@ -969,6 +973,8 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
         if (showBox && (++mFrameCount & 0x04) == 0) {
             drawBox();
         }
+
+        GLES20.glDisable(GLES20.GL_BLEND);
     }
 
     /**

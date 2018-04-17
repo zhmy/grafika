@@ -29,7 +29,7 @@ public class Texture2dProgram {
     private static final String TAG = GlUtil.TAG;
 
     public enum ProgramType {
-        TEXTURE_2D, TEXTURE_EXT, TEXTURE_EXT_BW, TEXTURE_EXT_FILT, TEXTURE_EXT_2
+        TEXTURE_2D, TEXTURE_EXT, TEXTURE_EXT_BW, TEXTURE_EXT_FILT, TEXTURE_EXT_2, TEXTURE_EXT_SLIDE
     }
 
     // Simple vertex shader, used for all programs.
@@ -80,6 +80,24 @@ public class Texture2dProgram {
                     "    color.a = alpha;\n" +
                     "    }\n" +
                     "    gl_FragColor = color;\n" +
+                    "}\n";
+
+    private static final String FRAGMENT_SHADER_EXT_SLIDE =
+            "#extension GL_OES_EGL_image_external : require\n" +
+                    "precision mediump float;\n" +
+                    "varying vec2 vTextureCoord;\n" +
+                    "uniform samplerExternalOES sTexture;\n" +
+                    "uniform float alpha;\n" +
+                    "void main() {\n" +
+                    "    vec4 color;\n" +
+                    "    if(alpha==0.0 || alpha == 1.0){\n" +
+                    "    gl_FragColor = texture2D(sTexture, vTextureCoord);\n" +
+                    "    } else {\n" +
+                    "    color = texture2D(sTexture, vTextureCoord);\n" +
+                    "    gl_FragColor = color*0.1 +texture2D(sTexture,vec2(vTextureCoord.x+0.01,vTextureCoord.y))*0.2\n" +
+                    "    +texture2D(sTexture,vec2(vTextureCoord.x+0.02,vTextureCoord.y))*0.3\n" +
+                    "    +texture2D(sTexture,vec2(vTextureCoord.x+0.03,vTextureCoord.y))*0.4;\n" +
+                    "    }\n" +
                     "}\n";
 
     // Fragment shader that converts color to black & white with a simple transformation.
@@ -177,6 +195,10 @@ public class Texture2dProgram {
             case TEXTURE_EXT_2:
                 mTextureTarget = GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
                 mProgramHandle = GlUtil.createProgram(VERTEX_SHADER, FRAGMENT_SHADER_EXT2);
+                break;
+            case TEXTURE_EXT_SLIDE:
+                mTextureTarget = GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
+                mProgramHandle = GlUtil.createProgram(VERTEX_SHADER, FRAGMENT_SHADER_EXT_SLIDE);
                 break;
             default:
                 throw new RuntimeException("Unhandled type " + programType);

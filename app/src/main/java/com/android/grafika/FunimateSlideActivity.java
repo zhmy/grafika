@@ -134,7 +134,7 @@ public class FunimateSlideActivity extends Activity {
         public void onSurfaceCreated(GL10 gl, EGLConfig config) {
 
             mFullScreen1 = new FullFrameRect(
-                    new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT));
+                    new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT_SLIDE));
 
             mFullScreen2 = new FullFrameRect(
                     new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT));
@@ -216,29 +216,46 @@ public class FunimateSlideActivity extends Activity {
             if (mMediaPlayer1.getCurrentPosition() <= 500) {
                 mSurfaceTexture1.updateTexImage();
                 mSurfaceTexture1.getTransformMatrix(mSTMatrix1);
+                mFullScreen1.setAlpha(1);
                 mFullScreen1.drawFrame(mTextureId1, mSTMatrix1);
             } else if (mMediaPlayer1.getCurrentPosition() > 500 && mMediaPlayer1.getCurrentPosition() < 2000) {
+
                 mSurfaceTexture1.updateTexImage();
                 mSurfaceTexture1.getTransformMatrix(mSTMatrix1);
                 GLES20.glViewport(-i, 0, mGLSurfaceView.getWidth(), mGLSurfaceView.getHeight());
+                if (i < mGLSurfaceView.getWidth()) {
+                    mFullScreen1.setAlpha(0.5f);
+                } else {
+                    mFullScreen1.setAlpha(1);
+                }
                 mFullScreen1.drawFrame(mTextureId1, mSTMatrix1);
 
                 mSurfaceTexture2.updateTexImage();
                 mSurfaceTexture2.getTransformMatrix(mSTMatrix2);
                 GLES20.glViewport(mGLSurfaceView.getWidth()-i, 0, mGLSurfaceView.getWidth(), mGLSurfaceView.getHeight());
+
                 mFullScreen1.drawFrame(mTextureId2, mSTMatrix2);
 
                 i = i + 50;
                 if (i > mGLSurfaceView.getWidth()) {
                     i = mGLSurfaceView.getWidth();
                 }
+
+
             } else if (mMediaPlayer1.getCurrentPosition() >=2000 && mMediaPlayer1.getCurrentPosition() < 3000) {
                 mSurfaceTexture2.updateTexImage();
                 mSurfaceTexture2.getTransformMatrix(mSTMatrix2);
+                mFullScreen1.setAlpha(1);
                 mFullScreen1.drawFrame(mTextureId2, mSTMatrix2);
 
                 i = 0;
             } else if (mMediaPlayer1.getCurrentPosition() >= 3000 && mMediaPlayer1.getCurrentPosition() < 4000) {
+                if (i < mGLSurfaceView.getWidth()) {
+                    mFullScreen1.setAlpha(0.5f);
+                } else {
+                    mFullScreen1.setAlpha(1);
+                }
+
                 mSurfaceTexture1.updateTexImage();
                 mSurfaceTexture1.getTransformMatrix(mSTMatrix1);
                 GLES20.glViewport( i - mGLSurfaceView.getWidth(), 0, mGLSurfaceView.getWidth(), mGLSurfaceView.getHeight());
@@ -253,10 +270,12 @@ public class FunimateSlideActivity extends Activity {
                 if (i > mGLSurfaceView.getWidth()) {
                     i = mGLSurfaceView.getWidth();
                 }
+
             } else if (mMediaPlayer1.getCurrentPosition() >= 4000 && mMediaPlayer1.getCurrentPosition() < 5000) {
                 mSurfaceTexture1.updateTexImage();
                 mSurfaceTexture1.getTransformMatrix(mSTMatrix1);
                 GLES20.glViewport(0, 0, mGLSurfaceView.getWidth(), mGLSurfaceView.getHeight());
+                mFullScreen1.setAlpha(1);
                 mFullScreen1.drawFrame(mTextureId1, mSTMatrix1);
 
                 i = 0;
@@ -276,8 +295,19 @@ public class FunimateSlideActivity extends Activity {
 
                 if (stateAdd) {
                     i += 120;
+                    if (i < mGLSurfaceView.getWidth()) {
+                        mFullScreen1.setAlpha(0.5f);
+                    } else {
+                        mFullScreen1.setAlpha(1);
+                    }
                 } else {
                     i -= 120;
+
+                    if (i < mGLSurfaceView.getWidth()) {
+                        mFullScreen1.setAlpha(0.5f);
+                    } else {
+                        mFullScreen1.setAlpha(1);
+                    }
                 }
                 if (i > mGLSurfaceView.getWidth()) {
                     stateAdd = false;
@@ -288,6 +318,7 @@ public class FunimateSlideActivity extends Activity {
                     i = 0;
                 }
             } else {
+                mFullScreen1.setAlpha(1);
                 mSurfaceTexture1.updateTexImage();
                 mSurfaceTexture1.getTransformMatrix(mSTMatrix1);
                 GLES20.glViewport(0, 0, mGLSurfaceView.getWidth()/2, mGLSurfaceView.getHeight()/2);
