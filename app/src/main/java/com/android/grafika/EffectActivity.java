@@ -38,7 +38,7 @@ public class EffectActivity extends Activity {
 //        mGLSurfaceView.getHolder().setFormat(PixelFormat.TRANSLUCENT);
 
         video1 = "/sdcard/DCIM/nani/zzz.mp4";
-        video2 = "/sdcard/DCIM/nani/zmy222.mp4";
+        video2 = "/sdcard/DCIM/nani/Flame.mp4";
 
         mRender = new SurfaceRender();
         mGLSurfaceView.setRenderer(mRender);
@@ -84,18 +84,18 @@ public class EffectActivity extends Activity {
         @Override
         public void onSurfaceCreated(GL10 gl, EGLConfig config) {
 
-            mFullScreen = new FullFrameRect(
-                    new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_2D));
+//            mFullScreen = new FullFrameRect(
+//                    new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_2D));
 
             mFullScreen1 = new FullFrameRect(
-                    new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT));
+                    new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT_BLEND));
 
-            mFullScreen2 = new FullFrameRect(
-                    new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT));
+//            mFullScreen2 = new FullFrameRect(
+//                    new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT));
 
             mTextureId1 = mFullScreen1.createTextureObject();
 
-            mTextureId2 = mFullScreen2.createTextureObject();
+            mTextureId2 = mFullScreen1.createTextureObject();
 
             // Create a SurfaceTexture, with an external texture, in this EGL context.  We don't
             // have a Looper in this thread -- GLSurfaceView doesn't create one -- so the frame
@@ -175,24 +175,21 @@ public class EffectActivity extends Activity {
 //
 //            }
 
-            GLES20.glDisable(GLES20.GL_DEPTH_TEST);
-            GLES20.glEnable(GLES20.GL_BLEND);
-            GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE);
-//            GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
+//            GLES20.glDisable(GLES20.GL_DEPTH_TEST);
+//            GLES20.glEnable(GLES20.GL_BLEND);
+//            GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE);
 
             mSurfaceTexture1.updateTexImage();
             mSurfaceTexture1.getTransformMatrix(mSTMatrix1);
-            GLES20.glViewport(0, 0, mGLSurfaceView.getWidth(), mGLSurfaceView.getHeight());
-            mFullScreen1.setAlpha(1);
-            mFullScreen1.drawFrame(mTextureId1, mSTMatrix1);
 
             mSurfaceTexture2.updateTexImage();
             mSurfaceTexture2.getTransformMatrix(mSTMatrix2);
-//            GLES20.glViewport(0, 0, mGLSurfaceView.getWidth()/2, mGLSurfaceView.getHeight()/2);
-            mFullScreen1.setAlpha(1);
-            mFullScreen1.drawFrame(mTextureId2, mSTMatrix2);
 
-            GLES20.glDisable(GLES20.GL_BLEND);
+//            mFullScreen1.drawFrame(mTextureId1, mSTMatrix1);
+//            mFullScreen1.drawFrame(mTextureId2, mSTMatrix2);
+            mFullScreen1.drawFrame(mTextureId1, mSTMatrix1, mTextureId2, mSTMatrix2);
+
+//            GLES20.glDisable(GLES20.GL_BLEND);
         }
     }
 }

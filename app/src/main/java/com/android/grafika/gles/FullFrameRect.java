@@ -18,6 +18,8 @@ package com.android.grafika.gles;
 
 import android.opengl.Matrix;
 
+import java.nio.FloatBuffer;
+
 /**
  * This class essentially represents a viewport-sized sprite that will be rendered with
  * a texture, usually from an external source like the camera or video decoder.
@@ -87,6 +89,16 @@ public class FullFrameRect {
                 mRectDrawable.getVertexStride(),
                 texMatrix, mRectDrawable.getTexCoordArray(), textureId,
                 mRectDrawable.getTexCoordStride());
+    }
+
+    public void drawFrame(int textureId1, float[] texMatrix1, int textureId2, float[] texMatrix2) {
+        // Use the identity matrix for MVP so our 2x2 FULL_RECTANGLE covers the viewport.
+        mProgram.draw(GlUtil.IDENTITY_MATRIX, mRectDrawable.getVertexArray(), 0,
+                mRectDrawable.getVertexCount(), mRectDrawable.getCoordsPerVertex(),
+                mRectDrawable.getVertexStride(),
+                texMatrix1, mRectDrawable.getTexCoordArray(), textureId1,
+                mRectDrawable.getTexCoordStride(), textureId2, texMatrix2,
+                mRectDrawable.getTexCoordArray2());
     }
 
     public void setAlpha(float alpha) {

@@ -27,9 +27,12 @@ import java.nio.FloatBuffer;
  */
 public class Texture2dProgram {
     private static final String TAG = GlUtil.TAG;
+    private int mFilterInputTextureUniform2;
+    private int mFilterInputTextureUniform;
 
     public enum ProgramType {
-        TEXTURE_2D, TEXTURE_EXT, TEXTURE_EXT_BW, TEXTURE_EXT_FILT, TEXTURE_EXT_2, TEXTURE_EXT_SLIDE
+        TEXTURE_2D, TEXTURE_EXT, TEXTURE_EXT_BW, TEXTURE_EXT_FILT, TEXTURE_EXT_2,
+        TEXTURE_EXT_SLIDE, TEXTURE_EXT_BLEND
     }
 
     // Simple vertex shader, used for all programs.
@@ -43,6 +46,21 @@ public class Texture2dProgram {
             "    gl_Position = uMVPMatrix * aPosition;\n" +
             "    vTextureCoord = (uTexMatrix * aTextureCoord).xy;\n" +
             "}\n";
+
+    private static final String VERTEX_SHADER_BLEND =
+            "uniform mat4 uMVPMatrix;\n" +
+                    "uniform mat4 uTexMatrix;\n" +
+                    "uniform mat4 uTexMatrix2;\n" +
+                    "attribute vec4 aPosition;\n" +
+                    "attribute vec4 aTextureCoord;\n" +
+                    "attribute vec4 aTextureCoord2;\n" +
+                    "varying vec2 vTextureCoord;\n" +
+                    "varying vec2 vTextureCoord2;\n" +
+                    "void main() {\n" +
+                    "    gl_Position = uMVPMatrix * aPosition;\n" +
+                    "    vTextureCoord = (uTexMatrix * aTextureCoord).xy;\n" +
+                    "    vTextureCoord2 = (uTexMatrix2 * aTextureCoord2).xy;\n" +
+                    "}\n";
 
     // Simple fragment shader for use with "normal" 2D textures.
     private static final String FRAGMENT_SHADER_2D =
@@ -100,6 +118,33 @@ public class Texture2dProgram {
                     "    }\n" +
                     "}\n";
 
+    private static final String FRAGMENT_SHADER_EXT_BLEND =
+            "#extension GL_OES_EGL_image_external : require\n" +
+                    "precision mediump float;\n" +
+                    "varying vec2 vTextureCoord;\n" +
+                    "varying vec2 vTextureCoord2;\n" +
+                    "uniform samplerExternalOES sTexture;\n" +
+                    "uniform samplerExternalOES sTexture2;\n" +
+                    "uniform float alpha;\n" +
+                    "uniform float thresholdSensitivity;\n" +
+                    "uniform float smoothing;\n" +
+                    "uniform vec3 colorToReplace;\n" +
+                    "void main() {\n" +
+                    "    vec4 textureColor =texture2D(sTexture, vTextureCoord);\n" +
+                    "    vec4 textureColor2 =texture2D(sTexture2, vTextureCoord2);\n" +
+                    "    vec3 colorToReplace = vec3(0.0,0.0,0.0);\n" +
+                    "    float maskY = 0.2989 * colorToReplace.r + 0.5866 * colorToReplace.g + 0.1145 * colorToReplace.b;\n" +
+                    "    float maskCr = 0.7132 * (colorToReplace.r - maskY);\n" +
+                    "    float maskCb = 0.5647 * (colorToReplace.b - maskY);\n" +
+                    "    float Y = 0.2989 * textureColor.r + 0.5866 * textureColor.g + 0.1145 * textureColor.b;\n" +
+                    "    float Cr = 0.7132 * (textureColor.r - Y);\n" +
+                    "    float Cb = 0.5647 * (textureColor.b - Y);\n" +
+                    "    float blendValue = 1.0 - smoothstep(thresholdSensitivity, thresholdSensitivity + smoothing, distance(vec2(Cr, Cb), vec2(maskCr, maskCb)));\n" +
+                    "    gl_FragColor = mix(textureColor, textureColor2, blendValue);\n" +
+                    "    //gl_FragColor =max(color, color2);\n" +
+                    "    //gl_FragColor =color;\n" +
+                    "}\n";
+
     // Fragment shader that converts color to black & white with a simple transformation.
     private static final String FRAGMENT_SHADER_EXT_BW =
             "#extension GL_OES_EGL_image_external : require\n" +
@@ -155,11 +200,13 @@ public class Texture2dProgram {
     private int mProgramHandle;
     private int muMVPMatrixLoc;
     private int muTexMatrixLoc;
+    private int muTexMatrixLoc2;
     private int muKernelLoc;
     private int muTexOffsetLoc;
     private int muColorAdjustLoc;
     private int maPositionLoc;
     private int maTextureCoordLoc;
+    private int maTextureCoordLoc2;
 
     private int mTextureTarget;
 
@@ -200,6 +247,10 @@ public class Texture2dProgram {
                 mTextureTarget = GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
                 mProgramHandle = GlUtil.createProgram(VERTEX_SHADER, FRAGMENT_SHADER_EXT_SLIDE);
                 break;
+            case TEXTURE_EXT_BLEND:
+                mTextureTarget = GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
+                mProgramHandle = GlUtil.createProgram(VERTEX_SHADER_BLEND, FRAGMENT_SHADER_EXT_BLEND);
+                break;
             default:
                 throw new RuntimeException("Unhandled type " + programType);
         }
@@ -212,12 +263,22 @@ public class Texture2dProgram {
 
         maPositionLoc = GLES20.glGetAttribLocation(mProgramHandle, "aPosition");
         GlUtil.checkLocation(maPositionLoc, "aPosition");
+        mFilterInputTextureUniform = GLES20.glGetUniformLocation(mProgramHandle, "sTexture");
         maTextureCoordLoc = GLES20.glGetAttribLocation(mProgramHandle, "aTextureCoord");
         GlUtil.checkLocation(maTextureCoordLoc, "aTextureCoord");
+        if (mProgramType == ProgramType.TEXTURE_EXT_BLEND) {
+            mFilterInputTextureUniform2 = GLES20.glGetUniformLocation(mProgramHandle, "sTexture2");
+            maTextureCoordLoc2 = GLES20.glGetAttribLocation(mProgramHandle, "aTextureCoord2");
+            GlUtil.checkLocation(maTextureCoordLoc2, "aTextureCoord2");
+        }
         muMVPMatrixLoc = GLES20.glGetUniformLocation(mProgramHandle, "uMVPMatrix");
         GlUtil.checkLocation(muMVPMatrixLoc, "uMVPMatrix");
         muTexMatrixLoc = GLES20.glGetUniformLocation(mProgramHandle, "uTexMatrix");
         GlUtil.checkLocation(muTexMatrixLoc, "uTexMatrix");
+        if (mProgramType == ProgramType.TEXTURE_EXT_BLEND) {
+            muTexMatrixLoc2 = GLES20.glGetUniformLocation(mProgramHandle, "uTexMatrix2");
+            GlUtil.checkLocation(muTexMatrixLoc2, "uTexMatrix2");
+        }
         muKernelLoc = GLES20.glGetUniformLocation(mProgramHandle, "uKernel");
         if (muKernelLoc < 0) {
             // no kernel in this one
@@ -387,6 +448,86 @@ public class Texture2dProgram {
         GLES20.glUseProgram(0);
     }
 
+    public void draw(float[] mvpMatrix, FloatBuffer vertexBuffer, int firstVertex,
+                     int vertexCount, int coordsPerVertex, int vertexStride,
+                     float[] texMatrix, FloatBuffer texBuffer, int textureId, int texStride,
+                     int textureId2, float[] texMatrix2, FloatBuffer texBuffer2) {
+        GlUtil.checkGlError("draw start");
+        // Select the program.
+        GLES20.glUseProgram(mProgramHandle);
+        GlUtil.checkGlError("glUseProgram");
+
+        // Set the texture.
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+        GLES20.glBindTexture(mTextureTarget, textureId);
+        GLES20.glUniform1i(mFilterInputTextureUniform, 0);
+
+        // Copy the model / view / projection matrix over.
+        GLES20.glUniformMatrix4fv(muMVPMatrixLoc, 1, false, mvpMatrix, 0);
+        GlUtil.checkGlError("glUniformMatrix4fv");
+
+        // Copy the texture transformation matrix over.
+        GLES20.glUniformMatrix4fv(muTexMatrixLoc, 1, false, texMatrix, 0);
+        GlUtil.checkGlError("glUniformMatrix4fv");
+
+        // Enable the "aPosition" vertex attribute.
+        GLES20.glEnableVertexAttribArray(maPositionLoc);
+        GlUtil.checkGlError("glEnableVertexAttribArray");
+
+        // Connect vertexBuffer to "aPosition".
+        GLES20.glVertexAttribPointer(maPositionLoc, coordsPerVertex,
+                GLES20.GL_FLOAT, false, vertexStride, vertexBuffer);
+        GlUtil.checkGlError("glVertexAttribPointer");
+
+        // Enable the "aTextureCoord" vertex attribute.
+        GLES20.glEnableVertexAttribArray(maTextureCoordLoc);
+        GlUtil.checkGlError("glEnableVertexAttribArray");
+
+        // Connect texBuffer to "aTextureCoord".
+        GLES20.glVertexAttribPointer(maTextureCoordLoc, 2,
+                GLES20.GL_FLOAT, false, texStride, texBuffer);
+        GlUtil.checkGlError("glVertexAttribPointer");
+
+
+        // Set the texture.
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE3);
+        GLES20.glBindTexture(mTextureTarget, textureId2);
+        GLES20.glUniform1i(mFilterInputTextureUniform, 3);
+
+        // Copy the texture transformation matrix over.
+        GLES20.glUniformMatrix4fv(muTexMatrixLoc2, 1, false, texMatrix2, 0);
+        GlUtil.checkGlError("glUniformMatrix4fv");
+
+
+        // Enable the "aTextureCoord" vertex attribute.
+        GLES20.glEnableVertexAttribArray(maTextureCoordLoc2);
+        GlUtil.checkGlError("glEnableVertexAttribArray");
+
+        // Connect texBuffer to "aTextureCoord".
+        GLES20.glVertexAttribPointer(maTextureCoordLoc2, 2,
+                GLES20.GL_FLOAT, false, texStride, texBuffer2);
+        GlUtil.checkGlError("glVertexAttribPointer");
+
+        // Populate the convolution kernel, if present.
+        if (muKernelLoc >= 0) {
+            GLES20.glUniform1fv(muKernelLoc, KERNEL_SIZE, mKernel, 0);
+            GLES20.glUniform2fv(muTexOffsetLoc, KERNEL_SIZE, mTexOffset, 0);
+            GLES20.glUniform1f(muColorAdjustLoc, mColorAdjust);
+        }
+
+        onDrawArraysPre();
+        // Draw the rect.
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, firstVertex, vertexCount);
+        GlUtil.checkGlError("glDrawArrays");
+
+        // Done -- disable vertex array, texture, and program.
+        GLES20.glDisableVertexAttribArray(maPositionLoc);
+        GLES20.glDisableVertexAttribArray(maTextureCoordLoc);
+        GLES20.glDisableVertexAttribArray(maTextureCoordLoc2);
+        GLES20.glBindTexture(mTextureTarget, 0);
+        GLES20.glUseProgram(0);
+    }
+
     private float mAlpha = 1.0f;
 
     public void setAlpha(float alpha) {
@@ -395,5 +536,11 @@ public class Texture2dProgram {
 
     public void onDrawArraysPre() {
         GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgramHandle, "alpha"), mAlpha);
+        if (mProgramType == ProgramType.TEXTURE_EXT_BLEND) {
+            GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgramHandle, "thresholdSensitivity"), 0.4f);
+            GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgramHandle, "smoothing"), 0.1f);
+//            GLES20.glUniform(GLES20.glGetUniformLocation(mProgramHandle, "colorToReplace"), mAlpha);
+
+        }
     }
 }

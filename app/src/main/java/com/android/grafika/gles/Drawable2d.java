@@ -88,10 +88,13 @@ public class Drawable2d {
             GlUtil.createFloatBuffer(FULL_RECTANGLE_COORDS);
     private static final FloatBuffer FULL_RECTANGLE_TEX_BUF =
             GlUtil.createFloatBuffer(FULL_RECTANGLE_TEX_COORDS);
+    private static final FloatBuffer FULL_RECTANGLE_TEX_BUF2 =
+            GlUtil.createFloatBuffer(FULL_RECTANGLE_TEX_COORDS);
 
 
     private FloatBuffer mVertexArray;
     private FloatBuffer mTexCoordArray;
+    private FloatBuffer mTexCoordArray2;
     private int mVertexCount;
     private int mCoordsPerVertex;
     private int mVertexStride;
@@ -129,6 +132,7 @@ public class Drawable2d {
             case FULL_RECTANGLE:
                 mVertexArray = FULL_RECTANGLE_BUF;
                 mTexCoordArray = FULL_RECTANGLE_TEX_BUF;
+                mTexCoordArray2 = FULL_RECTANGLE_TEX_BUF2;
                 mCoordsPerVertex = 2;
                 mVertexStride = mCoordsPerVertex * SIZEOF_FLOAT;
                 mVertexCount = FULL_RECTANGLE_COORDS.length / mCoordsPerVertex;
@@ -156,6 +160,10 @@ public class Drawable2d {
      */
     public FloatBuffer getTexCoordArray() {
         return mTexCoordArray;
+    }
+
+    public FloatBuffer getTexCoordArray2() {
+        return mTexCoordArray2;
     }
 
     /**
