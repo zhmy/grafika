@@ -16,6 +16,8 @@
 
 package com.android.grafika;
 
+import android.graphics.SurfaceTexture;
+import android.media.MediaPlayer;
 import android.opengl.GLES20;
 import android.opengl.GLES30;
 import android.opengl.Matrix;
@@ -137,6 +139,10 @@ public class RecordFBOActivity extends Activity implements SurfaceHolder.Callbac
         // reset its notion of when the previous Choreographer event arrived.
         Log.d(TAG, "onPause unhooking choreographer");
         Choreographer.getInstance().removeFrameCallback(this);
+
+        if (mRenderThread != null) {
+            mRenderThread.onPause();
+        }
     }
 
     @Override
@@ -156,7 +162,7 @@ public class RecordFBOActivity extends Activity implements SurfaceHolder.Callbac
     public void surfaceCreated(SurfaceHolder holder) {
         Log.d(TAG, "surfaceCreated holder=" + holder);
 
-        File outputFile = new File(getFilesDir(), "fbo-gl-recording.mp4");
+        File outputFile = new File("/sdcard/DCIM/zmy", "fbo-gl-recording.mp4");
         SurfaceView sv = (SurfaceView) findViewById(R.id.fboActivity_surfaceView);
         mRenderThread = new RenderThread(sv.getHolder(), new ActivityHandler(this), outputFile,
                 MiscUtils.getDisplayRefreshNsec(this));
@@ -447,7 +453,7 @@ public class RecordFBOActivity extends Activity implements SurfaceHolder.Callbac
         private int mOffscreenTexture;
         private int mFramebuffer;
         private int mDepthBuffer;
-        private FullFrameRect mFullScreen;
+        private FullFrameRect mFullScreen, mFullScreen2;
 
         // Used for recording.
         private boolean mRecordingEnabled;
@@ -457,6 +463,12 @@ public class RecordFBOActivity extends Activity implements SurfaceHolder.Callbac
         private int mRecordMethod;
         private boolean mRecordedPrevious;
         private Rect mVideoRect;
+
+        public void onPause() {
+            if (mMediaPlayer1 != null && mMediaPlayer1.isPlaying()) {
+                mMediaPlayer1.pause();
+            }
+        }
 
 
         /**
@@ -549,6 +561,10 @@ public class RecordFBOActivity extends Activity implements SurfaceHolder.Callbac
             Surface surface = mSurfaceHolder.getSurface();
             prepareGl(surface);
         }
+        MediaPlayer mMediaPlayer1;
+        int textureId;
+        SurfaceTexture surfaceTexture;
+
 
         /**
          * Prepares window surface and GL state.
@@ -562,6 +578,9 @@ public class RecordFBOActivity extends Activity implements SurfaceHolder.Callbac
             // Used for blitting texture to FBO.
             mFullScreen = new FullFrameRect(
                     new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_2D));
+
+            mFullScreen2 = new FullFrameRect(
+                    new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_EXT));
 
             // Program used for drawing onto the screen.
             mProgram = new FlatShadedProgram();
@@ -577,6 +596,32 @@ public class RecordFBOActivity extends Activity implements SurfaceHolder.Callbac
             GLES20.glDisable(GLES20.GL_CULL_FACE);
 
             mActivityHandler.sendGlesVersion(mEglCore.getGlVersion());
+
+
+            mMediaPlayer1 = new MediaPlayer();
+            textureId = mFullScreen2.createTextureObject();
+            surfaceTexture = new SurfaceTexture(textureId);
+            surfaceTexture.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
+                @Override
+                public void onFrameAvailable(SurfaceTexture surfaceTexture) {
+//                mGLSurfaceViewNew.requestRender();
+
+                }
+            });
+            surface = new Surface(surfaceTexture);
+            mMediaPlayer1.setSurface(surface);
+            mMediaPlayer1.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+                @Override
+                public void onPrepared(MediaPlayer mp) {
+                    mMediaPlayer1.start();
+                }
+            });
+            try {
+                mMediaPlayer1.setDataSource("/sdcard/DCIM/nani/zzz.mp4");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            mMediaPlayer1.prepareAsync();
         }
 
        /**
@@ -1073,6 +1118,8 @@ public class RecordFBOActivity extends Activity implements SurfaceHolder.Callbac
         private void draw() {
             GlUtil.checkGlError("draw start");
 
+
+
             // Clear to a non-black color to make the content easily differentiable from
             // the pillar-/letter-boxing.
             GLES20.glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
@@ -1103,6 +1150,13 @@ public class RecordFBOActivity extends Activity implements SurfaceHolder.Callbac
                 default:
             }
             mRecordRect.draw(mProgram, mDisplayProjectionMatrix);
+
+            GLES20.glViewport(0, 0, 200, 400);
+
+            surfaceTexture.updateTexImage();
+            float[] stMatrix = new float[16];
+            surfaceTexture.getTransformMatrix(stMatrix);
+            mFullScreen2.drawFrame(textureId, stMatrix);
 
             GlUtil.checkGlError("draw done");
         }

@@ -84,6 +84,7 @@ public class Sprite2d {
         mScaleX = scaleX;
         mScaleY = scaleY;
         mMatrixReady = false;
+        Log.e("zmy", "scale x = "+scaleX+" scale y = "+scaleY);
     }
 
     /**

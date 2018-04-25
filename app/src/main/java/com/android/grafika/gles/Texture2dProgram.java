@@ -32,7 +32,7 @@ public class Texture2dProgram {
 
     public enum ProgramType {
         TEXTURE_2D, TEXTURE_EXT, TEXTURE_EXT_BW, TEXTURE_EXT_FILT, TEXTURE_EXT_2,
-        TEXTURE_EXT_SLIDE, TEXTURE_EXT_BLEND
+        TEXTURE_EXT_SLIDE, TEXTURE_EXT_BLEND, TEXTURE_EXT_TEMPLATE
     }
 
     // Simple vertex shader, used for all programs.
@@ -58,7 +58,7 @@ public class Texture2dProgram {
                     "varying vec2 vTextureCoord2;\n" +
                     "void main() {\n" +
                     "    gl_Position = uMVPMatrix * aPosition;\n" +
-                    "    vTextureCoord = (uTexMatrix * aTextureCoord).xy;\n" +
+                    "    vTextureCoord = vec2((uTexMatrix * aTextureCoord).x,(uTexMatrix * aTextureCoord).y);\n" +
                     "    vTextureCoord2 = (uTexMatrix2 * aTextureCoord2).xy;\n" +
                     "}\n";
 
@@ -129,20 +129,39 @@ public class Texture2dProgram {
                     "uniform float thresholdSensitivity;\n" +
                     "uniform float smoothing;\n" +
                     "uniform vec3 colorToReplace;\n" +
+                    "const highp vec3 W = vec3(0.2125, 0.7154, 0.0721);"+
                     "void main() {\n" +
                     "    vec4 textureColor =texture2D(sTexture, vTextureCoord);\n" +
                     "    vec4 textureColor2 =texture2D(sTexture2, vTextureCoord2);\n" +
-                    "    vec3 colorToReplace = vec3(0.0,0.0,0.0);\n" +
                     "    float maskY = 0.2989 * colorToReplace.r + 0.5866 * colorToReplace.g + 0.1145 * colorToReplace.b;\n" +
                     "    float maskCr = 0.7132 * (colorToReplace.r - maskY);\n" +
                     "    float maskCb = 0.5647 * (colorToReplace.b - maskY);\n" +
                     "    float Y = 0.2989 * textureColor.r + 0.5866 * textureColor.g + 0.1145 * textureColor.b;\n" +
                     "    float Cr = 0.7132 * (textureColor.r - Y);\n" +
                     "    float Cb = 0.5647 * (textureColor.b - Y);\n" +
-                    "    float blendValue = 1.0 - smoothstep(thresholdSensitivity, thresholdSensitivity + smoothing, distance(vec2(Cr, Cb), vec2(maskCr, maskCb)));\n" +
+                    "    float L = dot(textureColor.rgb, W);\n" +
+                    "    float maskL = dot(colorToReplace.rgb, W);\n" +
+                    "    float blendValue = 1.0 - smoothstep(thresholdSensitivity, thresholdSensitivity + smoothing, distance(vec3(Cr, Cb, L), vec3(maskCr, maskCb, maskL)));\n" +
                     "    gl_FragColor = mix(textureColor, textureColor2, blendValue);\n" +
-                    "    //gl_FragColor =max(color, color2);\n" +
-                    "    //gl_FragColor =color;\n" +
+                    "}\n";
+
+    private static final String FRAGMENT_SHADER_EXT_TEMPLATE =
+            "#extension GL_OES_EGL_image_external : require\n" +
+                    "precision mediump float;\n" +
+                    "varying vec2 vTextureCoord;\n" +
+                    "varying vec2 vTextureCoord2;\n" +
+                    "uniform samplerExternalOES sTexture;\n" +
+                    "uniform samplerExternalOES sTexture2;\n" +
+                    "uniform float x;\n" +
+                    "uniform float y;\n" +
+                    "uniform float alpha;\n" +
+                    "void main() {\n" +
+                    "    vec4 textureColor =texture2D(sTexture, vTextureCoord);\n" +
+                    "    if (vTextureCoord.x > x && vTextureCoord.x < x+0.3 && vTextureCoord.y > y && vTextureCoord.y < y+0.3){\n" +
+                    "       gl_FragColor = texture2D(sTexture2, vec2(vTextureCoord2.x*0.001,vTextureCoord2.y*0.001));\n" +
+                    "    } else {" +
+                    "      gl_FragColor =textureColor; " +
+                    "    }\n" +
                     "}\n";
 
     // Fragment shader that converts color to black & white with a simple transformation.
@@ -251,6 +270,10 @@ public class Texture2dProgram {
                 mTextureTarget = GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
                 mProgramHandle = GlUtil.createProgram(VERTEX_SHADER_BLEND, FRAGMENT_SHADER_EXT_BLEND);
                 break;
+            case TEXTURE_EXT_TEMPLATE:
+                mTextureTarget = GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
+                mProgramHandle = GlUtil.createProgram(VERTEX_SHADER_BLEND, FRAGMENT_SHADER_EXT_TEMPLATE);
+                break;
             default:
                 throw new RuntimeException("Unhandled type " + programType);
         }
@@ -266,7 +289,7 @@ public class Texture2dProgram {
         mFilterInputTextureUniform = GLES20.glGetUniformLocation(mProgramHandle, "sTexture");
         maTextureCoordLoc = GLES20.glGetAttribLocation(mProgramHandle, "aTextureCoord");
         GlUtil.checkLocation(maTextureCoordLoc, "aTextureCoord");
-        if (mProgramType == ProgramType.TEXTURE_EXT_BLEND) {
+        if (mProgramType == ProgramType.TEXTURE_EXT_BLEND || mProgramType == ProgramType.TEXTURE_EXT_TEMPLATE) {
             mFilterInputTextureUniform2 = GLES20.glGetUniformLocation(mProgramHandle, "sTexture2");
             maTextureCoordLoc2 = GLES20.glGetAttribLocation(mProgramHandle, "aTextureCoord2");
             GlUtil.checkLocation(maTextureCoordLoc2, "aTextureCoord2");
@@ -275,7 +298,7 @@ public class Texture2dProgram {
         GlUtil.checkLocation(muMVPMatrixLoc, "uMVPMatrix");
         muTexMatrixLoc = GLES20.glGetUniformLocation(mProgramHandle, "uTexMatrix");
         GlUtil.checkLocation(muTexMatrixLoc, "uTexMatrix");
-        if (mProgramType == ProgramType.TEXTURE_EXT_BLEND) {
+        if (mProgramType == ProgramType.TEXTURE_EXT_BLEND || mProgramType == ProgramType.TEXTURE_EXT_TEMPLATE) {
             muTexMatrixLoc2 = GLES20.glGetUniformLocation(mProgramHandle, "uTexMatrix2");
             GlUtil.checkLocation(muTexMatrixLoc2, "uTexMatrix2");
         }
@@ -489,10 +512,13 @@ public class Texture2dProgram {
         GlUtil.checkGlError("glVertexAttribPointer");
 
 
+
+
+
         // Set the texture.
         GLES20.glActiveTexture(GLES20.GL_TEXTURE3);
         GLES20.glBindTexture(mTextureTarget, textureId2);
-        GLES20.glUniform1i(mFilterInputTextureUniform, 3);
+        GLES20.glUniform1i(mFilterInputTextureUniform2, 3);
 
         // Copy the texture transformation matrix over.
         GLES20.glUniformMatrix4fv(muTexMatrixLoc2, 1, false, texMatrix2, 0);
@@ -534,12 +560,32 @@ public class Texture2dProgram {
         mAlpha = alpha;
     }
 
+    private float mX = 0.0f;
+    private float mY = 0.0f;
+    private float mW = 0.0f;
+    private float mH = 0.0f;
+    public void setLocation(float x, float y, float w, float h) {
+        mX = x;
+        mY = y;
+        mW = w;
+        mH = h;
+        Log.e("zmy", "x :" +x+" y :"+y+"w : "+w+" h :"+h);
+    }
+
+    private float[] mColorToReplace = new float[]{0.0f, 1.0f, 0.0f};
+
     public void onDrawArraysPre() {
         GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgramHandle, "alpha"), mAlpha);
         if (mProgramType == ProgramType.TEXTURE_EXT_BLEND) {
             GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgramHandle, "thresholdSensitivity"), 0.4f);
             GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgramHandle, "smoothing"), 0.1f);
-//            GLES20.glUniform(GLES20.glGetUniformLocation(mProgramHandle, "colorToReplace"), mAlpha);
+            GLES20.glUniform3fv(GLES20.glGetUniformLocation(mProgramHandle, "colorToReplace"), 1, FloatBuffer.wrap(mColorToReplace));
+
+        }
+
+        if (mProgramType == ProgramType.TEXTURE_EXT_TEMPLATE) {
+            GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgramHandle, "x"), mX);
+            GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgramHandle, "y"), mY);
 
         }
     }

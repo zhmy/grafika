@@ -91,14 +91,41 @@ public class FullFrameRect {
                 mRectDrawable.getTexCoordStride());
     }
 
+    private float[] mScratchMatrix = new float[16];
+    private boolean mMatrixReady;
+    private float[] mModelViewMatrix = new float[16];
+    public float[] getModelViewMatrix() {
+        if (!mMatrixReady) {
+            recomputeMatrix();
+        }
+        return mModelViewMatrix;
+    }
+    private void recomputeMatrix() {
+        float[] modelView = mModelViewMatrix;
+
+        Matrix.setIdentityM(modelView, 0);
+//        Matrix.translateM(modelView, 0, 0.1f, 1.1f, 1.0f);
+        Matrix.scaleM(modelView, 0, 0.5f, 0.5f, 1.0f);
+        mMatrixReady = true;
+    }
+
+
+
     public void drawFrame(int textureId1, float[] texMatrix1, int textureId2, float[] texMatrix2) {
         // Use the identity matrix for MVP so our 2x2 FULL_RECTANGLE covers the viewport.
-        mProgram.draw(GlUtil.IDENTITY_MATRIX, mRectDrawable.getVertexArray(), 0,
+        float[] xxx = GlUtil.IDENTITY_MATRIX;
+
+        Matrix.multiplyMM(mScratchMatrix, 0, xxx, 0, getModelViewMatrix(), 0);
+        mProgram.draw(mScratchMatrix, mRectDrawable.getVertexArray(), 0,
                 mRectDrawable.getVertexCount(), mRectDrawable.getCoordsPerVertex(),
                 mRectDrawable.getVertexStride(),
                 texMatrix1, mRectDrawable.getTexCoordArray(), textureId1,
                 mRectDrawable.getTexCoordStride(), textureId2, texMatrix2,
                 mRectDrawable.getTexCoordArray2());
+    }
+
+    public void setLocation(float x, float y, float w, float h) {
+        mProgram.setLocation(x, y, w, h);
     }
 
     public void setAlpha(float alpha) {
