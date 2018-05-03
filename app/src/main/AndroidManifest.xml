@@ -152,6 +152,8 @@
         </activity>
         <activity android:name=".EffectActivity">
         </activity>
+        <activity android:name=".HumanSegActivity">
+        </activity>
     </application>
 
 </manifest>

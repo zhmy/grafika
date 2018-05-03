@@ -38,7 +38,7 @@ public class EffectActivity extends Activity {
 //        mGLSurfaceView.getHolder().setFormat(PixelFormat.TRANSLUCENT);
 
         video1 = "/sdcard/DCIM/nani/zzz.mp4";
-        video2 = "/sdcard/DCIM/nani/zmy333.mp4";
+        video2 = "/sdcard/DCIM/nani/b50.mp4";
 
         mRender = new SurfaceRender();
         mGLSurfaceView.setRenderer(mRender);
@@ -58,6 +58,8 @@ public class EffectActivity extends Activity {
     }
 
     public void onMix(View view) {
+        //分身术合成
+
     }
 
     class SurfaceRender implements GLSurfaceView.Renderer {
@@ -187,7 +189,7 @@ public class EffectActivity extends Activity {
 
 //            mFullScreen1.drawFrame(mTextureId1, mSTMatrix1);
 //            mFullScreen1.drawFrame(mTextureId2, mSTMatrix2);
-            mFullScreen1.drawFrame(mTextureId1, mSTMatrix1, mTextureId2, mSTMatrix2);
+            mFullScreen1.drawFrame( mTextureId2, mSTMatrix2,mTextureId1, mSTMatrix1);
 
 //            GLES20.glDisable(GLES20.GL_BLEND);
         }

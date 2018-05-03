@@ -572,7 +572,7 @@ public class Texture2dProgram {
         Log.e("zmy", "x :" +x+" y :"+y+"w : "+w+" h :"+h);
     }
 
-    private float[] mColorToReplace = new float[]{0.0f, 1.0f, 0.0f};
+    private float[] mColorToReplace = new float[]{0.0f, 0.0f, 0.0f};
 
     public void onDrawArraysPre() {
         GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgramHandle, "alpha"), mAlpha);
