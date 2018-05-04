@@ -31,7 +31,6 @@ import com.android.grafika.gles.FullFrameRect;
 import com.android.grafika.gles.Texture2dProgram;
 import com.android.grafika.mix.InputSurface;
 import com.android.grafika.mix.OutputSurface;
-import com.android.grafika.mix.OutputSurfaceWithFilter;
 
 import java.io.File;
 import java.io.IOException;
