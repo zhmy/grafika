@@ -109,7 +109,7 @@ public class HumanSegActivity extends Activity {
 
             @Override
             protected Boolean doInBackground(Void... voids) {
-                File outFile = new File("/sdcard/DCIM/zmy/humanSeg.mp4");
+                File outFile = new File("/sdcard/DCIM/zmy/human_seg.mp4");
                 if (outFile.exists()) {
                     outFile.delete();
                 }
@@ -122,7 +122,7 @@ public class HumanSegActivity extends Activity {
             protected void onPostExecute(Boolean aBoolean) {
                 super.onPostExecute(aBoolean);
                 Toast.makeText(HumanSegActivity.this,
-                        "saved success in /sdcard/DCIM/zmy/humanSeg.mp4 ", Toast.LENGTH_LONG).show();
+                        "saved success in /sdcard/DCIM/zmy/human_seg.mp4 ", Toast.LENGTH_LONG).show();
             }
         }.execute();
     }

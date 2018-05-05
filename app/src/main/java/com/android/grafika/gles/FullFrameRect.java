@@ -139,6 +139,22 @@ public class FullFrameRect {
                 mRectDrawable.getTexCoordArray2());
     }
 
+    public void drawFrame(int textureId1, float[] texMatrix1, int textureId2, float[] texMatrix2, boolean is2DImage) {
+        // Use the identity matrix for MVP so our 2x2 FULL_RECTANGLE covers the viewport.
+        float[] xxx = GlUtil.IDENTITY_MATRIX;
+        if (is2DImage) {
+            Matrix.multiplyMM(mScratchMatrix, 0, xxx, 0, getModelViewMatrix(), 0);
+        } else {
+            mScratchMatrix = xxx;
+        }
+        mProgram.draw(mScratchMatrix, mRectDrawable.getVertexArray(), 0,
+                mRectDrawable.getVertexCount(), mRectDrawable.getCoordsPerVertex(),
+                mRectDrawable.getVertexStride(),
+                texMatrix1, mRectDrawable.getTexCoordArray(), textureId1,
+                mRectDrawable.getTexCoordStride(), textureId2, texMatrix2,
+                mRectDrawable.getTexCoordArray2());
+    }
+
     public void setLocation(float x, float y, float w, float h) {
         mProgram.setLocation(x, y, w, h);
     }
