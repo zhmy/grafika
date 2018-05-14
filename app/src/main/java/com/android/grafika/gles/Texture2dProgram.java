@@ -18,6 +18,7 @@ package com.android.grafika.gles;
 
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
+import android.text.TextUtils;
 import android.util.Log;
 
 import java.nio.FloatBuffer;
@@ -80,21 +81,23 @@ public class Texture2dProgram {
                     "varying vec2 vTextureCoord2;\n" +
                     "uniform sampler2D sTexture;\n" +
                     "uniform sampler2D sTexture2;\n" +
-                    "uniform float alpha;\n" +
-                    "uniform float thresholdSensitivity;\n" +
-                    "uniform float smoothing;\n" +
-                    "uniform vec3 colorToReplace;\n" +
+                    "uniform int maskMode;\n" +
+                    "uniform vec4 maskColor;\n" +
                     "void main() {\n" +
                     "    vec4 textureColor =texture2D(sTexture, vTextureCoord);\n" +
                     "    vec4 textureColor2 =texture2D(sTexture2, vTextureCoord2);\n" +
-                    "    if (textureColor2.r == 0.0 && textureColor2.g == 0.0 && textureColor2.b ==0.0 && textureColor2.a == 0.0) {\n" +
+                    "    if (textureColor2.r == 0.0 && textureColor2.g == 0.0 && textureColor2.b ==0.0){\n" +
                     "       textureColor2.a = 0.0;\n" +
                     "       gl_FragColor = textureColor2;\n" +
                     "       // discard;\n" +
                     "    } else {\n" +
-                    "       gl_FragColor = textureColor;\n" +
-                    "       //gl_FragColor = mix(vec4(1.0,0.0,0.0,0.5),textureColor,0.5);\n" +
-                    "       //gl_FragColor = vec4(1.0,0.0,0.0,0.5);\n" +
+                    "       if (maskMode == 1) {\n" +
+                    "           gl_FragColor = maskColor;\n" +
+                    "           //gl_FragColor = mix(vec4(maskColor.rgb,1.0),textureColor,maskColor.a);\n" +
+                    "       } else {\n" +
+                    "           gl_FragColor = textureColor;\n" +
+                    "       }\n" +
+                    "       //gl_FragColor = mix(maskColor,textureColor,0.5);\n" +
                     "    }\n" +
                     "}\n";
 
@@ -401,6 +404,27 @@ public class Texture2dProgram {
         return texId;
     }
 
+    public int createTexture2DObject() {
+        int[] textures = new int[1];
+        GLES20.glGenTextures(1, textures, 0);
+        GlUtil.checkGlError("glGenTextures");
+
+        int texId = textures[0];
+        GLES20.glBindTexture(mTextureTarget, texId);
+        GlUtil.checkGlError("glBindTexture " + texId);
+
+        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER,
+                GLES20.GL_NEAREST);
+        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER,
+                GLES20.GL_LINEAR);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S,
+                GLES20.GL_CLAMP_TO_EDGE);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T,
+                GLES20.GL_CLAMP_TO_EDGE);
+        GlUtil.checkGlError("glTexParameter");
+        return texId;
+    }
+
     /**
      * Configures the convolution filter values.
      *
@@ -608,6 +632,54 @@ public class Texture2dProgram {
 
     private float[] mColorToReplace = new float[]{0.0f, 0.0f, 0.0f};
 
+    private int mMaskMode;
+    private float[] mMaskColor = new float[]{1.0f, 0.0f, 0.0f, 0.5f};
+
+    public void setHumanSegMaskParams(int maskMode, String maskColor, float maskAlpha) {
+        mMaskMode = maskMode;
+        if (TextUtils.isEmpty(maskColor) || maskColor.length() < 6) {
+            return;
+        }
+        try {
+            String rStr = maskColor.substring(maskColor.length() - 6, maskColor.length() - 4);
+            String gStr = maskColor.substring(maskColor.length() - 4, maskColor.length() - 2);
+            String bStr = maskColor.substring(maskColor.length() - 2, maskColor.length());
+
+            int r = hexToDecimal(rStr.toUpperCase());
+            int g = hexToDecimal(gStr.toUpperCase());
+            int b = hexToDecimal(bStr.toUpperCase());
+
+            mMaskColor[0] = r * 1.0f / 255;
+            mMaskColor[1] = g * 1.0f / 255;
+            mMaskColor[2] = b * 1.0f / 255;
+        } catch (Exception e) {
+            mMaskColor[0] = 1;
+            mMaskColor[1] = 0;
+            mMaskColor[2] = 0;
+        }
+        mMaskColor[3] = maskAlpha;
+    }
+
+    public int hexToDecimal(String hex) {
+        if (TextUtils.isEmpty(hex)) {
+            return 0;
+        }
+        int decimalValue = 0;
+        for (int i = 0; i < hex.length(); i++) {
+            char hexChar = hex.charAt(i);
+            decimalValue = decimalValue * 16 + hexCharToDecimal(hexChar);
+        }
+        return decimalValue;
+    }
+
+    public int hexCharToDecimal(char hexChar) {
+        if (hexChar >= 'A' && hexChar <= 'F') {
+            return 10 + hexChar - 'A';
+        } else {
+            return hexChar - '0';
+        }
+    }
+
     public void onDrawArraysPre() {
         GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgramHandle, "alpha"), mAlpha);
         if (mProgramType == ProgramType.TEXTURE_EXT_BLEND || mProgramType == ProgramType.TEXTURE_2D_BLEND) {
@@ -621,6 +693,11 @@ public class Texture2dProgram {
             GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgramHandle, "x"), mX);
             GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgramHandle, "y"), mY);
 
+        }
+
+        if (mProgramType == ProgramType.TEXTURE_2D_BLEND) {
+            GLES20.glUniform1i(GLES20.glGetUniformLocation(mProgramHandle, "maskMode"), mMaskMode);
+            GLES20.glUniform4fv(GLES20.glGetUniformLocation(mProgramHandle, "maskColor"), 1, FloatBuffer.wrap(mMaskColor));
         }
     }
 }

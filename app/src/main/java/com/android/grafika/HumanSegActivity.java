@@ -4,7 +4,9 @@ import android.annotation.TargetApi;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.graphics.SurfaceTexture;
+import android.media.Image;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaCodecList;
@@ -19,10 +21,14 @@ import android.opengl.Matrix;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.support.annotation.RequiresApi;
 import android.util.Log;
 import android.view.Surface;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.android.grafika.effect.BaseEffect;
@@ -34,8 +40,12 @@ import com.android.grafika.mix.InputSurface;
 import com.android.grafika.mix.OutputSurface;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -48,6 +58,7 @@ public class HumanSegActivity extends Activity {
     GLSurfaceView mGLSurfaceView;
     String video1, video2;
     SurfaceRender mRender;
+    ImageView mImageView;
 
     public class SegFrameItem {
         public long timestamp;
@@ -68,9 +79,10 @@ public class HumanSegActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_funimate_effect);
+        setContentView(R.layout.activity_human_seg);
         mGLSurfaceView = findViewById(R.id.surfaceView);
         mGLSurfaceView.setEGLContextClientVersion(2);
+        mImageView = findViewById(R.id.image);
 
         SegFrameItem segFrameItem1 = new SegFrameItem(1000, 0.5f, "/sdcard/DCIM/nani/like.png");
         SegFrameItem segFrameItem2 = new SegFrameItem(2000, 1, "/sdcard/DCIM/nani/nani_water_mark.png");
@@ -85,7 +97,6 @@ public class HumanSegActivity extends Activity {
         mGLSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
     }
 
-
     @Override
     protected void onPause() {
         super.onPause();
@@ -94,6 +105,46 @@ public class HumanSegActivity extends Activity {
             public void run() {
                 // Tell the renderer that it's about to be paused so it can clean up.
                 mRender.notifyPausing();
+            }
+        });
+    }
+
+    private Handler mHandler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            mImageView.setImageBitmap((Bitmap) msg.obj);
+        }
+    };
+
+    public void onFrame(View view) {
+        mGLSurfaceView.queueEvent(new Runnable() {
+            @Override
+            public void run() {
+                // Tell the renderer that it's about to be paused so it can clean up.
+                Bitmap bitmap = mRender.getFrameBitmap();
+                File file = new File("/sdcard/DCIM/zmy/humanSegFrame.jpg");
+                if (file.exists()) {
+                    file.delete();
+                }
+                FileOutputStream out = null;
+                try {
+                    out = new FileOutputStream(file);
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        out.flush();
+                        out.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                Message message = Message.obtain();
+                message.obj = bitmap;
+                mHandler.sendMessage(message);
             }
         });
     }
@@ -567,6 +618,34 @@ public class HumanSegActivity extends Activity {
                 }
             }
         }
+        public Bitmap getFrameBitmap() {
+            int width = mGLSurfaceView.getWidth();
+            int height = mGLSurfaceView.getHeight();
+            final int[] pixelMirroredArray = new int[width * height * 4];
+            final IntBuffer pixelBuffer = IntBuffer.allocate(width * height * 4);
+            GLES20.glReadPixels(0, 0, width, height, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, pixelBuffer);
+            int[] pixelArray = pixelBuffer.array();
+
+            // Convert upside down mirror-reversed image to right-side up normal image.
+            for (int i = 0; i < height; i++) {
+                for (int j = 0; j < width; j++) {
+                    pixelMirroredArray[(height - i - 1) * width + j] = pixelArray[i * width + j];
+                }
+            }
+            final Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            bitmap.copyPixelsFromBuffer(IntBuffer.wrap(pixelMirroredArray));
+            return bitmap;
+        }
+
+        private Handler mHandler = new Handler(Looper.getMainLooper()) {
+            @Override
+            public void handleMessage(Message msg) {
+                super.handleMessage(msg);
+                mImageView.setImageBitmap((Bitmap) msg.obj);
+            }
+        };
+
+        private boolean isDraw = false;
 
         @Override
         public void onDrawFrame(GL10 gl) {
@@ -598,11 +677,19 @@ public class HumanSegActivity extends Activity {
                         GLES20.glDisable(GLES20.GL_BLEND);
                         GLES20.glViewport(0, 0, mGLSurfaceView.getWidth(), mGLSurfaceView.getHeight());
                     }
+//                    if (mMediaPlayer1.getCurrentPosition() > 3000 && !isDraw) {
+//                        Message message = Message.obtain();
+//                        message.obj = getFrameBitmap();
+//                        mHandler.sendMessage(message);
+//                        isDraw = true;
+//                    }
                     i++;
                 }
             } else {
-                List<SegFrameItem> removeList = new ArrayList<>();
                 for (SegFrameItem segFrameItem : mSegFrameItemList) {
+                    if (mMediaPlayer1.getCurrentPosition() >= segFrameItem.timestamp) {
+                        continue;
+                    }
                     GLES20.glViewport(100 * i, 300 * i, 300, 300);
                     GLES20.glEnable(GLES20.GL_BLEND);
                     GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA);
@@ -612,13 +699,8 @@ public class HumanSegActivity extends Activity {
                     mFullScreen.drawFrame(segFrameItem.textureId, m2, true);
                     GLES20.glDisable(GLES20.GL_BLEND);
                     GLES20.glViewport(0, 0, mGLSurfaceView.getWidth(), mGLSurfaceView.getHeight());
-
-                    if (mMediaPlayer1.getCurrentPosition() >= segFrameItem.timestamp) {
-                        removeList.add(segFrameItem);
-                    }
                     i++;
                 }
-                mSegFrameItemList.removeAll(removeList);
             }
         }
     }

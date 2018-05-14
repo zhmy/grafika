@@ -79,6 +79,10 @@ public class FullFrameRect {
         return mProgram.createTextureObject();
     }
 
+    public int createTexture2DObject() {
+        return mProgram.createTexture2DObject();
+    }
+
     /**
      * Draws a viewport-filling rect, texturing it with the specified texture object.
      */
@@ -161,5 +165,9 @@ public class FullFrameRect {
 
     public void setAlpha(float alpha) {
         mProgram.setAlpha(alpha);
+    }
+
+    public void setHumanSegMaskParams(int maskMode, String color, float alpha) {
+        mProgram.setHumanSegMaskParams(maskMode, color, alpha);
     }
 }

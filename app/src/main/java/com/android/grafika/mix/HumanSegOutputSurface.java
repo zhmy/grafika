@@ -11,6 +11,7 @@ import android.view.Surface;
 
 import com.android.grafika.HumanSegActivity;
 import com.android.grafika.gles.FullFrameRect;
+import com.android.grafika.gles.GlUtil;
 import com.android.grafika.gles.Texture2dProgram;
 
 import java.util.ArrayList;
@@ -52,54 +53,28 @@ public class HumanSegOutputSurface implements SurfaceTexture.OnFrameAvailableLis
         Log.d(TAG, "onSurfaceCreated: ");
         mTextureId = mFullScreenMovie.createTextureObject();
 
-        int[] textures = new int[1];
-        GLES20.glGenTextures(1, textures, 0);
-        textureId3 = textures[0];
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId3);
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+        textureId3 = mFullScreenFUDisplay.createTexture2DObject();
         GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, mVideoWidth, mVideoHeight,
                 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
         GLES20.glGenFramebuffers(1, frameBuffers, 0);
         frameBuffer = frameBuffers[0];
 
+
+
+        for (HumanSegActivity.SegFrameItem segFrameItem : mSegFrameItemList) {
+            Bitmap bitmap = BitmapFactory.decodeFile(segFrameItem.imagePath);
+            if (bitmap != null) {
+                int textureId = mFullScreenFUDisplay.createTexture2DObject();
+                GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0);
+                bitmap.recycle();
+                segFrameItem.textureId = textureId;
+            }
+        }
+
         mSurfaceTexture = new SurfaceTexture(mTextureId);
         mSurface = new Surface(mSurfaceTexture);
         mSurfaceTexture.setOnFrameAvailableListener(this);
-
-        for (HumanSegActivity.SegFrameItem segFrameItem : mSegFrameItemList) {
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inJustDecodeBounds = true;
-            BitmapFactory.decodeFile(segFrameItem.imagePath, options);
-            int inSampleSize = 1;
-            if (options.outWidth > 300 || options.outHeight > 300) {
-                int widthRatio = Math.round((float) options.outWidth / (float) 300);
-                int heightRatio = Math.round((float) options.outHeight / (float) 300);
-                inSampleSize = Math.min(widthRatio, heightRatio);
-            }
-            options.inSampleSize = inSampleSize;
-            options.inJustDecodeBounds = false;
-            Bitmap bitmap = BitmapFactory.decodeFile(segFrameItem.imagePath, options);
-            if (bitmap != null) {
-                int textures2[] = new int[1];
-                GLES20.glGenTextures(1, textures2, 0);
-                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textures2[0]);
-                GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                        GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-                GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                        GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
-                GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                        GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-                GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                        GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
-                GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0);
-                bitmap.recycle();
-                segFrameItem.textureId = textures2[0];
-            }
-        }
     }
 
     public void release() {
@@ -116,49 +91,36 @@ public class HumanSegOutputSurface implements SurfaceTexture.OnFrameAvailableLis
     public void drawImage(int curPos) {
         mSurfaceTexture.getTransformMatrix(mSTMatrix);
 
-        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, frameBuffer);
-        GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, textureId3, 0);
-        mFullScreenMovie.drawFrame(mTextureId, mSTMatrix);
-        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
-        float[] m = new float[16];
-        Matrix.setIdentityM(m, 0);
         GLES20.glViewport(0, 0, mVideoWidth, mVideoHeight);
-        mFullScreenFUDisplay.setAlpha(1);
-        mFullScreenFUDisplay.drawFrame(textureId3, m);
+//        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, frameBuffer);
+//        GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, textureId3, 0);
+        mFullScreenMovie.drawFrame(mTextureId, mSTMatrix);
+//        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+//        mFullScreenFUDisplay.setAlpha(1);
+//        mFullScreenFUDisplay.drawFrame(textureId3, GlUtil.IDENTITY_MATRIX);
 
-        int i = 0;
         if (isPositive) {
             for (HumanSegActivity.SegFrameItem segFrameItem : mSegFrameItemList) {
                 if (curPos >= segFrameItem.timestamp) {
-                    GLES20.glViewport(100 * i, 300 * i, 300, 300);
                     GLES20.glEnable(GLES20.GL_BLEND);
                     GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA);
-                    float[] m2 = new float[16];
-                    Matrix.setIdentityM(m2, 0);
                     mFullScreenFUDisplay.setAlpha(segFrameItem.alpha);
-                    mFullScreenFUDisplay.drawFrame(segFrameItem.textureId, m2, true);
+                    mFullScreenFUDisplay.drawFrame(segFrameItem.textureId, GlUtil.IDENTITY_MATRIX, true);
                     GLES20.glDisable(GLES20.GL_BLEND);
-                    GLES20.glViewport(0, 0, mVideoWidth, mVideoHeight);
                 }
-                i++;
             }
         } else {
             List<HumanSegActivity.SegFrameItem> removeList = new ArrayList<>();
             for (HumanSegActivity.SegFrameItem segFrameItem : mSegFrameItemList) {
-                GLES20.glViewport(100 * i, 300 * i, 300, 300);
                 GLES20.glEnable(GLES20.GL_BLEND);
                 GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA);
-                float[] m2 = new float[16];
-                Matrix.setIdentityM(m2, 0);
                 mFullScreenFUDisplay.setAlpha(segFrameItem.alpha);
-                mFullScreenFUDisplay.drawFrame(segFrameItem.textureId, m2, true);
+                mFullScreenFUDisplay.drawFrame(segFrameItem.textureId, GlUtil.IDENTITY_MATRIX, true);
                 GLES20.glDisable(GLES20.GL_BLEND);
-                GLES20.glViewport(0, 0, mVideoWidth, mVideoHeight);
 
                 if (curPos >= segFrameItem.timestamp) {
                     removeList.add(segFrameItem);
                 }
-                i++;
             }
             mSegFrameItemList.removeAll(removeList);
         }

@@ -83,44 +83,22 @@ public class HumanSegImageActivity extends Activity {
         options.inJustDecodeBounds = false;
         Bitmap bitmap = BitmapFactory.decodeResource(getResources(), image1Res);
         if (bitmap != null) {
-            int textures2[] = new int[1];
-            GLES20.glGenTextures(1, textures2, 0);
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textures2[0]);
-            GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                    GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-            GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                    GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
-            GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                    GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-            GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                    GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+            mTextureId1 = mFullScreen.createTexture2DObject();
             GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, bitmap, 0);
             bitmap.recycle();
-            mTextureId1 = textures2[0];
         }
 
         BitmapFactory.Options options2 = new BitmapFactory.Options();
         options2.inJustDecodeBounds = true;
-        BitmapFactory.decodeResource(getResources(), image4Res);
+        BitmapFactory.decodeResource(getResources(), image2Res);
         int inSampleSize2 = 1;
         options2.inSampleSize = inSampleSize2;
         options2.inJustDecodeBounds = false;
-        Bitmap bitmap2 = BitmapFactory.decodeResource(getResources(), image4Res);
+        Bitmap bitmap2 = BitmapFactory.decodeResource(getResources(), image2Res);
         if (bitmap2 != null) {
-            int textures2[] = new int[1];
-            GLES20.glGenTextures(1, textures2, 0);
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textures2[0]);
-            GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                    GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-            GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                    GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
-            GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                    GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-            GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D,
-                    GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+            mTextureId2 = mFullScreen.createTexture2DObject();
             GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, bitmap2, 0);
             bitmap2.recycle();
-            mTextureId2 = textures2[0];
         }
 
 
@@ -143,11 +121,18 @@ public class HumanSegImageActivity extends Activity {
         if (mEglCore == null) {
             return;
         }
+        GLES20.glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
         GLES20.glViewport(0, 0, 800, 500);
         float[] m2 = new float[16];
         Matrix.setIdentityM(m2, 0);
-        mFullScreen.drawFrame(mTextureId1, m2, mTextureId2, m2, true);
+        mFullScreen.setHumanSegMaskParams(1, "E6175C", 0.5f);
 
+        GLES20.glDepthMask(false);
+//        GLES20.glEnable(GLES20.GL_BLEND);
+//        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_DST_COLOR);
+        mFullScreen.drawFrame(mTextureId1, m2, mTextureId2, m2, true);
+//        GLES20.glDisable(GLES20.GL_BLEND);
         capture();
     }
 
@@ -164,13 +149,12 @@ public class HumanSegImageActivity extends Activity {
     public void onMix(View view) {
 //        //分身术合成
         drawFrame();
-//        mGLSurfaceView.requestRender();
-//
+        mGLSurfaceView.requestRender();
 //        mGLSurfaceView.queueEvent(new Runnable() {
 //            @Override
 //            public void run() {
 //                // Tell the renderer that it's about to be paused so it can clean up.
-//                mRender.capture();
+//                capture();
 //            }
 //        });
     }
@@ -197,7 +181,6 @@ public class HumanSegImageActivity extends Activity {
 
         final Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         bitmap.copyPixelsFromBuffer(IntBuffer.wrap(pixelMirroredArray));
-
 
         runOnUiThread(new Runnable() {
             @Override
@@ -366,11 +349,11 @@ public class HumanSegImageActivity extends Activity {
 
             BitmapFactory.Options options2 = new BitmapFactory.Options();
             options2.inJustDecodeBounds = true;
-            BitmapFactory.decodeResource(getResources(), image4Res);
+            BitmapFactory.decodeResource(getResources(), image2Res);
             int inSampleSize2 = 1;
             options2.inSampleSize = inSampleSize2;
             options2.inJustDecodeBounds = false;
-            Bitmap bitmap2 = BitmapFactory.decodeResource(getResources(), image4Res);
+            Bitmap bitmap2 = BitmapFactory.decodeResource(getResources(), image2Res);
             if (bitmap2 != null) {
                 int textures2[] = new int[1];
                 GLES20.glGenTextures(1, textures2, 0);
@@ -391,11 +374,12 @@ public class HumanSegImageActivity extends Activity {
 
         @Override
         public void onDrawFrame(GL10 gl) {
-//            GLES20.glClearColor(0.0f, 1.0f, 0.0f, 1.0f);
-//            GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+            GLES20.glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+            GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
             float[] m2 = new float[16];
             Matrix.setIdentityM(m2, 0);
 //            mFullScreen1.drawFrame(mTextureId1, m2, true);
+            mFullScreen.setHumanSegMaskParams(1, "E6175C", 0.5f);
             mFullScreen.drawFrame(mTextureId1, m2, mTextureId2, m2, true);
         }
     }
