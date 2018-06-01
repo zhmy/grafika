@@ -10,6 +10,10 @@ import android.opengl.GLSurfaceView;
 import android.opengl.GLUtils;
 import android.opengl.Matrix;
 import android.os.Bundle;
+import android.support.v8.renderscript.Allocation;
+import android.support.v8.renderscript.Element;
+import android.support.v8.renderscript.RenderScript;
+import android.support.v8.renderscript.ScriptIntrinsicBlur;
 import android.util.Log;
 import android.view.Surface;
 import android.view.View;
@@ -148,8 +152,31 @@ public class HumanSegImageActivity extends Activity {
 
     public void onMix(View view) {
 //        //分身术合成
-        drawFrame();
-        mGLSurfaceView.requestRender();
+//        drawFrame();
+//        mGLSurfaceView.requestRender();
+
+        //高斯模糊
+        final BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = 8;
+        Bitmap blurTemplate = BitmapFactory.decodeResource(getResources(), image1Res, options);
+
+        int width = Math.round(blurTemplate.getWidth() * 0.5f);
+        int height = Math.round(blurTemplate.getHeight() * 0.5f);
+        Bitmap inputBmp = Bitmap.createScaledBitmap(blurTemplate,width,height,false);
+
+        RenderScript rs = RenderScript.create(HumanSegImageActivity.this);
+        final Allocation input = Allocation.createFromBitmap(rs, inputBmp);
+        final Allocation output = Allocation.createTyped(rs, input.getType());
+        final ScriptIntrinsicBlur script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs));
+        script.setRadius(8f);
+        script.setInput(input);
+        script.forEach(output);
+        output.copyTo(inputBmp);
+        script.destroy();
+        
+        mImageView2.setImageBitmap(inputBmp);
+
+
 //        mGLSurfaceView.queueEvent(new Runnable() {
 //            @Override
 //            public void run() {

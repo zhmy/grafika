@@ -165,6 +165,8 @@ public class CameraCaptureActivity extends Activity
         File outputFile = new File("/sdcard/DCIM/zmy", "camera-test.mp4");
         if (outputFile.exists()) {
             outputFile.delete();
+        } else {
+            outputFile.getParentFile().mkdirs();
         }
 
         TextView fileText = (TextView) findViewById(R.id.cameraOutputFile_text);
@@ -845,11 +847,10 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
         });
         try {
             mMediaPlayer2.setDataSource("/sdcard/DCIM/nani/zzz.mp4");
+            mMediaPlayer2.prepareAsync();
         } catch (IOException e) {
             e.printStackTrace();
         }
-        mMediaPlayer2.prepareAsync();
-
 
         mMediaPlayer1 = new MediaPlayer();
         textureId = fullFrameRect.createTextureObject();
@@ -871,12 +872,10 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
         });
         try {
             mMediaPlayer1.setDataSource("/sdcard/DCIM/nani/zmy333.mp4");
+            mMediaPlayer1.prepareAsync();
         } catch (IOException e) {
             e.printStackTrace();
         }
-        mMediaPlayer1.prepareAsync();
-
-
     }
 
     int[] frameBuffers = new int[1];
@@ -1032,7 +1031,8 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
 
             GLES20.glViewport(0, 0, mGLSurfaceView.getWidth(), mGLSurfaceView.getHeight());
 
-            mFullFrameRect.drawFrame(textureId, stMatrix, mTextureId, mSTMatrix);
+//            mFullFrameRect.drawFrame(textureId, stMatrix, mTextureId, mSTMatrix);
+            mFullScreen.drawFrame(mTextureId, mSTMatrix);
 
 //            GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
 
@@ -1075,7 +1075,7 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
 
         // Tell the video encoder thread that a new frame is available.
         // This will be ignored if we're not actually recording.
-        mVideoEncoder.frameAvailable(mSurfaceTexture, surfaceTexture);
+        mVideoEncoder.frameAvailable(mSurfaceTexture);
 
 
         // Draw a flashing box if we're recording.  This only appears on screen.

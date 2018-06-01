@@ -163,6 +163,10 @@ public class FullFrameRect {
         mProgram.setLocation(x, y, w, h);
     }
 
+    public void setDistance(float distance) {
+        mProgram.setDistance(distance);
+    }
+
     public void setAlpha(float alpha) {
         mProgram.setAlpha(alpha);
     }

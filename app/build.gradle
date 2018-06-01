@@ -21,6 +21,9 @@ android {
         applicationId "com.google.grafika"
         minSdkVersion 14
         targetSdkVersion 26
+
+        renderscriptTargetApi 18
+        renderscriptSupportModeEnabled true
     }
 }
 

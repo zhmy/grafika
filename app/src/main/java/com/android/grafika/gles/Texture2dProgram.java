@@ -33,7 +33,7 @@ public class Texture2dProgram {
 
     public enum ProgramType {
         TEXTURE_2D, TEXTURE_EXT, TEXTURE_EXT_BW, TEXTURE_EXT_FILT, TEXTURE_EXT_2,
-        TEXTURE_EXT_SLIDE, TEXTURE_EXT_BLEND, TEXTURE_EXT_TEMPLATE, TEXTURE_2D_BLEND
+        TEXTURE_EXT_SLIDE, TEXTURE_EXT_BLEND, TEXTURE_EXT_TEMPLATE, TEXTURE_2D_BLEND, TEXTURE_EXT_SLIDE2
     }
 
     // Simple vertex shader, used for all programs.
@@ -145,6 +145,42 @@ public class Texture2dProgram {
                     "    gl_FragColor = color*0.1 +texture2D(sTexture,vec2(vTextureCoord.x+0.01,vTextureCoord.y))*0.2\n" +
                     "    +texture2D(sTexture,vec2(vTextureCoord.x+0.02,vTextureCoord.y))*0.3\n" +
                     "    +texture2D(sTexture,vec2(vTextureCoord.x+0.03,vTextureCoord.y))*0.4;\n" +
+                    "    }\n" +
+                    "}\n";
+
+    private static final String FRAGMENT_SHADER_EXT_SLIDE2 =
+            "#extension GL_OES_EGL_image_external : require\n" +
+                    "precision mediump float;\n" +
+                    "varying vec2 vTextureCoord;\n" +
+                    "varying vec2 vTextureCoord2;\n" +
+                    "uniform samplerExternalOES sTexture;\n" +
+                    "uniform samplerExternalOES sTexture2;\n" +
+                    "uniform float distance;\n" +
+                    "void main() {\n" +
+                    "    vec2 vector;\n" +
+                    "    vec4 color;\n" +
+                    "    if(vTextureCoord.x < distance){\n" +
+                    "       vector[0]=vTextureCoord.x+(1.0-distance);\n" +
+                    "       vector[1]=vTextureCoord.y;\n" +
+                    "       color = texture2D(sTexture, vector);\n" +
+                    "       gl_FragColor = color * 0.2;\n" +
+                    "       for (int i = 1; i<5;i++) {\n" +
+                    "           gl_FragColor+=texture2D(sTexture,vec2(vector.x-0.02*float(i)*(1.0-distance),vector.y))*0.1;\n" +
+                    "       }\n" +
+                    "       for (int i = 1; i<5;i++) {\n" +
+                    "           gl_FragColor+=texture2D(sTexture,vec2(vector.x+0.02*(1.0-distance)*float(i),vector.y))*0.1;\n" +
+                    "       }\n" +
+                    "    } else {\n" +
+                    "       vector[0]=vTextureCoord2.x-distance;\n" +
+                    "       vector[1]=vTextureCoord2.y;\n" +
+                    "       color = texture2D(sTexture2, vector);\n" +
+                    "       gl_FragColor = color * 0.2;\n" +
+                    "       for (int i = 1; i<5;i++) {\n" +
+                    "           gl_FragColor+=texture2D(sTexture2,vec2(vector.x-0.02*float(i)*(distance),vector.y))*0.1;\n" +
+                    "       }\n" +
+                    "       for (int i = 1; i<5;i++) {\n" +
+                    "           gl_FragColor+=texture2D(sTexture2,vec2(vector.x+0.02*float(i)*(distance),vector.y))*0.1;\n" +
+                    "       }\n" +
                     "    }\n" +
                     "}\n";
 
@@ -296,6 +332,10 @@ public class Texture2dProgram {
                 mTextureTarget = GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
                 mProgramHandle = GlUtil.createProgram(VERTEX_SHADER, FRAGMENT_SHADER_EXT_SLIDE);
                 break;
+            case TEXTURE_EXT_SLIDE2:
+                mTextureTarget = GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
+                mProgramHandle = GlUtil.createProgram(VERTEX_SHADER_BLEND, FRAGMENT_SHADER_EXT_SLIDE2);
+                break;
             case TEXTURE_EXT_BLEND:
                 mTextureTarget = GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
                 mProgramHandle = GlUtil.createProgram(VERTEX_SHADER_BLEND, FRAGMENT_SHADER_EXT_BLEND);
@@ -304,7 +344,6 @@ public class Texture2dProgram {
                 mTextureTarget = GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
                 mProgramHandle = GlUtil.createProgram(VERTEX_SHADER_BLEND, FRAGMENT_SHADER_EXT_TEMPLATE);
                 break;
-
             case TEXTURE_2D_BLEND:
                 mTextureTarget = GLES20.GL_TEXTURE_2D;
                 mProgramHandle = GlUtil.createProgram(VERTEX_SHADER_BLEND, FRAGMENT_SHADER_2D_BLEND);
@@ -325,7 +364,7 @@ public class Texture2dProgram {
         maTextureCoordLoc = GLES20.glGetAttribLocation(mProgramHandle, "aTextureCoord");
         GlUtil.checkLocation(maTextureCoordLoc, "aTextureCoord");
         if (mProgramType == ProgramType.TEXTURE_EXT_BLEND || mProgramType == ProgramType.TEXTURE_EXT_TEMPLATE
-                || mProgramType == ProgramType.TEXTURE_2D_BLEND) {
+                || mProgramType == ProgramType.TEXTURE_2D_BLEND || mProgramType == ProgramType.TEXTURE_EXT_SLIDE2) {
             mFilterInputTextureUniform2 = GLES20.glGetUniformLocation(mProgramHandle, "sTexture2");
             maTextureCoordLoc2 = GLES20.glGetAttribLocation(mProgramHandle, "aTextureCoord2");
             GlUtil.checkLocation(maTextureCoordLoc2, "aTextureCoord2");
@@ -335,7 +374,7 @@ public class Texture2dProgram {
         muTexMatrixLoc = GLES20.glGetUniformLocation(mProgramHandle, "uTexMatrix");
         GlUtil.checkLocation(muTexMatrixLoc, "uTexMatrix");
         if (mProgramType == ProgramType.TEXTURE_EXT_BLEND || mProgramType == ProgramType.TEXTURE_EXT_TEMPLATE
-                || mProgramType == ProgramType.TEXTURE_2D_BLEND) {
+                || mProgramType == ProgramType.TEXTURE_2D_BLEND || mProgramType == ProgramType.TEXTURE_EXT_SLIDE2) {
             muTexMatrixLoc2 = GLES20.glGetUniformLocation(mProgramHandle, "uTexMatrix2");
             GlUtil.checkLocation(muTexMatrixLoc2, "uTexMatrix2");
         }
@@ -630,6 +669,12 @@ public class Texture2dProgram {
         Log.e("zmy", "x :" +x+" y :"+y+"w : "+w+" h :"+h);
     }
 
+    private float mDistance;
+
+    public void setDistance(float distance) {
+        mDistance = distance;
+    }
+
     private float[] mColorToReplace = new float[]{0.0f, 0.0f, 0.0f};
 
     private int mMaskMode;
@@ -682,6 +727,7 @@ public class Texture2dProgram {
 
     public void onDrawArraysPre() {
         GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgramHandle, "alpha"), mAlpha);
+        GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgramHandle, "distance"), mDistance);
         if (mProgramType == ProgramType.TEXTURE_EXT_BLEND || mProgramType == ProgramType.TEXTURE_2D_BLEND) {
             GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgramHandle, "thresholdSensitivity"), 0.4f);
             GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgramHandle, "smoothing"), 0.1f);
