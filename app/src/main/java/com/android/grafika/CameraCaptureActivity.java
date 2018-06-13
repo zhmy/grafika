@@ -996,15 +996,6 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
         surfaceTexture.updateTexImage();
         surfaceTexture.getTransformMatrix(stMatrix);
 
-//        mSurfaceRenderer.setHasChange(mHasChange);
-//        mSurfaceTexture.updateTexImage();
-//        mSurfaceTexture.getTransformMatrix(mSTMatrix);
-//        if (mHasChange) {
-//            mSurfaceRenderer.setParams(mFullFrameRect, mSTMatrix, mSurfaceTexture, mTextureId);
-//        } else {
-//            mFullFrameRect.drawFrame(mTextureId, mSTMatrix);
-//        }
-
         if (mHasChange) {
 //            mSurfaceRenderer.setParams(mFullFrameRect, mSTMatrix, mSurfaceTexture, mTextureId);
 

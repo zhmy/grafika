@@ -87,10 +87,10 @@ public class HumanSegActivity extends Activity {
         SegFrameItem segFrameItem1 = new SegFrameItem(1000, 0.5f, "/sdcard/DCIM/nani/like.png");
         SegFrameItem segFrameItem2 = new SegFrameItem(2000, 1, "/sdcard/DCIM/nani/nani_water_mark.png");
         mSegFrameItemList.add(segFrameItem1);
-        mSegFrameItemList.add(segFrameItem2);
+//        mSegFrameItemList.add(segFrameItem2);
 
         video1 = "/sdcard/DCIM/nani/zzz.mp4";
-        video2 = "/sdcard/DCIM/nani/b50.mp4";
+//        video2 = "/sdcard/DCIM/nani/b50.mp4";
 
         mRender = new SurfaceRender();
         mGLSurfaceView.setRenderer(mRender);
@@ -503,6 +503,8 @@ public class HumanSegActivity extends Activity {
 
             mTextureId2 = mFullScreen1.createTextureObject();
 
+
+
             // Create a SurfaceTexture, with an external texture, in this EGL context.  We don't
             // have a Looper in this thread -- GLSurfaceView doesn't create one -- so the frame
             // available messages will arrive on the main thread.
@@ -539,22 +541,22 @@ public class HumanSegActivity extends Activity {
             }
             mMediaPlayer1.prepareAsync();
 
-            mMediaPlayer2 = new MediaPlayer();
-            mMediaPlayer2.setSurface(mSurface2);
-            mMediaPlayer2.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
-                @Override
-                public void onPrepared(MediaPlayer mp) {
-                    mMediaPlayer2.setLooping(true);
-                    mMediaPlayer2.start();
-                    mMediaPlayer2.pause();
-                }
-            });
-            try {
-                mMediaPlayer2.setDataSource(video2);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            mMediaPlayer2.prepareAsync();
+//            mMediaPlayer2 = new MediaPlayer();
+//            mMediaPlayer2.setSurface(mSurface2);
+//            mMediaPlayer2.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+//                @Override
+//                public void onPrepared(MediaPlayer mp) {
+//                    mMediaPlayer2.setLooping(true);
+//                    mMediaPlayer2.start();
+//                    mMediaPlayer2.pause();
+//                }
+//            });
+//            try {
+//                mMediaPlayer2.setDataSource(video2);
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+//            mMediaPlayer2.prepareAsync();
 
             effect = new BaseEffect();
             effect.startPercentage = 0;
@@ -569,23 +571,34 @@ public class HumanSegActivity extends Activity {
         int frameBuffer;
         int textureId3;
 
+        private int mTexture2DId;
+        private int[] mFramebuffers = new int[1];
+        private int mFrameBuffer;
+
         @Override
         public void onSurfaceChanged(GL10 gl, int width, int height) {
             GLES20.glViewport(0, 0, width, height);
 
-//            int[] textures = new int[1];
-//            GLES20.glGenTextures(1, textures, 0);
-//            textureId3 = textures[0];
-//            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId3);
-//            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
-//            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-//            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-//            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+//            mTexture2DId = mFullScreen1.createTexture2DObject();
 //            GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, width, height,
 //                    0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null);
 //            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
-//            GLES20.glGenFramebuffers(1, frameBuffers, 0);
-//            frameBuffer = frameBuffers[0];
+//            GLES20.glGenFramebuffers(1, mFramebuffers, 0);
+//            mFrameBuffer = mFramebuffers[0];
+
+            int[] textures = new int[1];
+            GLES20.glGenTextures(1, textures, 0);
+            mTexture2DId = textures[0];
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mTexture2DId);
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+            GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, width, height,
+                    0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null);
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
+            GLES20.glGenFramebuffers(1, mFramebuffers, 0);
+            mFrameBuffer = mFramebuffers[0];
 
             for (SegFrameItem segFrameItem : mSegFrameItemList) {
                 BitmapFactory.Options options = new BitmapFactory.Options();
@@ -652,10 +665,18 @@ public class HumanSegActivity extends Activity {
             mSurfaceTexture1.updateTexImage();
             mSurfaceTexture1.getTransformMatrix(mSTMatrix1);
 
-//            GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, frameBuffer);
-//            GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, textureId3, 0);
+            GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, mFrameBuffer);
+            GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, mTexture2DId, 0);
+            GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+
             mFullScreen1.setAlpha(1);
             mFullScreen1.drawFrame(mTextureId1, mSTMatrix1);
+            GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+
+            mFullScreen.setAlpha(1);
+            mFullScreen.drawFrame(mTexture2DId, mSTMatrix1);
+
 //            GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
 //            float[] m = new float[16];
 //            Matrix.setIdentityM(m, 0);
@@ -677,12 +698,6 @@ public class HumanSegActivity extends Activity {
                         GLES20.glDisable(GLES20.GL_BLEND);
                         GLES20.glViewport(0, 0, mGLSurfaceView.getWidth(), mGLSurfaceView.getHeight());
                     }
-//                    if (mMediaPlayer1.getCurrentPosition() > 3000 && !isDraw) {
-//                        Message message = Message.obtain();
-//                        message.obj = getFrameBitmap();
-//                        mHandler.sendMessage(message);
-//                        isDraw = true;
-//                    }
                     i++;
                 }
             } else {

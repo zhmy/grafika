@@ -173,7 +173,7 @@ public class HumanSegImageActivity extends Activity {
         script.forEach(output);
         output.copyTo(inputBmp);
         script.destroy();
-        
+
         mImageView2.setImageBitmap(inputBmp);
 
 

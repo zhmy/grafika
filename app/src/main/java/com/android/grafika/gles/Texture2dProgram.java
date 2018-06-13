@@ -33,7 +33,8 @@ public class Texture2dProgram {
 
     public enum ProgramType {
         TEXTURE_2D, TEXTURE_EXT, TEXTURE_EXT_BW, TEXTURE_EXT_FILT, TEXTURE_EXT_2,
-        TEXTURE_EXT_SLIDE, TEXTURE_EXT_BLEND, TEXTURE_EXT_TEMPLATE, TEXTURE_2D_BLEND, TEXTURE_EXT_SLIDE2
+        TEXTURE_EXT_SLIDE, TEXTURE_EXT_BLEND, TEXTURE_EXT_TEMPLATE, TEXTURE_2D_BLEND, TEXTURE_EXT_SLIDE2,
+        TEXTURE_EXT_BLURX
     }
 
     // Simple vertex shader, used for all programs.
@@ -156,31 +157,66 @@ public class Texture2dProgram {
                     "uniform samplerExternalOES sTexture;\n" +
                     "uniform samplerExternalOES sTexture2;\n" +
                     "uniform float distance;\n" +
+                    "uniform float repeat;\n" +
                     "void main() {\n" +
                     "    vec2 vector;\n" +
                     "    vec4 color;\n" +
+                    "    float tranAlpha = 1.0;\n" +
                     "    if(vTextureCoord.x < distance){\n" +
                     "       vector[0]=vTextureCoord.x+(1.0-distance);\n" +
                     "       vector[1]=vTextureCoord.y;\n" +
+                    "       if (repeat == 0.0) {\n" +
+                    "           tranAlpha=(1.0-distance);\n" +
+                    "       }\n"+
                     "       color = texture2D(sTexture, vector);\n" +
                     "       gl_FragColor = color * 0.2;\n" +
                     "       for (int i = 1; i<5;i++) {\n" +
-                    "           gl_FragColor+=texture2D(sTexture,vec2(vector.x-0.02*float(i)*(1.0-distance),vector.y))*0.1;\n" +
+                    "           gl_FragColor+=texture2D(sTexture,vec2(vector.x-0.02*float(i)*tranAlpha,vector.y))*0.1;\n" +
                     "       }\n" +
                     "       for (int i = 1; i<5;i++) {\n" +
-                    "           gl_FragColor+=texture2D(sTexture,vec2(vector.x+0.02*(1.0-distance)*float(i),vector.y))*0.1;\n" +
+                    "           gl_FragColor+=texture2D(sTexture,vec2(vector.x+0.02*tranAlpha*float(i),vector.y))*0.1;\n" +
                     "       }\n" +
                     "    } else {\n" +
                     "       vector[0]=vTextureCoord2.x-distance;\n" +
                     "       vector[1]=vTextureCoord2.y;\n" +
+                    "       if (repeat == 0.0) {\n" +
+                    "           tranAlpha=distance;\n" +
+                    "       }\n"+
                     "       color = texture2D(sTexture2, vector);\n" +
                     "       gl_FragColor = color * 0.2;\n" +
                     "       for (int i = 1; i<5;i++) {\n" +
-                    "           gl_FragColor+=texture2D(sTexture2,vec2(vector.x-0.02*float(i)*(distance),vector.y))*0.1;\n" +
+                    "           gl_FragColor+=texture2D(sTexture2,vec2(vector.x-0.02*float(i)*(tranAlpha),vector.y))*0.1;\n" +
                     "       }\n" +
                     "       for (int i = 1; i<5;i++) {\n" +
-                    "           gl_FragColor+=texture2D(sTexture2,vec2(vector.x+0.02*float(i)*(distance),vector.y))*0.1;\n" +
+                    "           gl_FragColor+=texture2D(sTexture2,vec2(vector.x+0.02*float(i)*(tranAlpha),vector.y))*0.1;\n" +
                     "       }\n" +
+                    "    }\n" +
+                    "}\n";
+
+    private static final String FRAGMENT_SHADER_EXT_BLUR_X =
+            "#extension GL_OES_EGL_image_external : require\n" +
+                    "precision mediump float;\n" +
+                    "varying vec2 vTextureCoord;\n" +
+                    "uniform sampler2D sTexture;\n" +
+                    "uniform float distance;\n" +
+                    "void main() {\n" +
+                    "    vec2 vector;\n" +
+                    "    vec4 color;\n" +
+                    "    float tranAlpha = 1.0;\n" +
+                    "    if(vTextureCoord.x < distance){\n" +
+                    "           tranAlpha=(1.0-distance);\n" +
+                    "    } else { \n" +
+                    "           tranAlpha=distance;\n" +
+                    "    }\n" +
+                    "    vector[0]=vTextureCoord.x;\n" +
+                    "    vector[1]=vTextureCoord.y;\n" +
+                    "    color = texture2D(sTexture, vector);\n" +
+                    "    gl_FragColor = color * 0.2;\n" +
+                    "    for (int i = 1; i<5;i++) {\n" +
+                    "        gl_FragColor+=texture2D(sTexture,vec2(vector.x-0.1*float(i)*tranAlpha,vector.y))*0.1;\n" +
+                    "    }\n" +
+                    "    for (int i = 1; i<5;i++) {\n" +
+                    "         gl_FragColor+=texture2D(sTexture,vec2(vector.x+0.1*tranAlpha*float(i),vector.y))*0.1;\n" +
                     "    }\n" +
                     "}\n";
 
@@ -335,6 +371,10 @@ public class Texture2dProgram {
             case TEXTURE_EXT_SLIDE2:
                 mTextureTarget = GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
                 mProgramHandle = GlUtil.createProgram(VERTEX_SHADER_BLEND, FRAGMENT_SHADER_EXT_SLIDE2);
+                break;
+            case TEXTURE_EXT_BLURX:
+                mTextureTarget = GLES20.GL_TEXTURE_2D;
+                mProgramHandle = GlUtil.createProgram(VERTEX_SHADER, FRAGMENT_SHADER_EXT_BLUR_X);
                 break;
             case TEXTURE_EXT_BLEND:
                 mTextureTarget = GLES11Ext.GL_TEXTURE_EXTERNAL_OES;

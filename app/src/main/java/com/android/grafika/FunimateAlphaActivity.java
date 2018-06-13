@@ -638,6 +638,7 @@ public class FunimateAlphaActivity extends Activity {
         float alpha = 0.0f;
         boolean stateAdd;
 
+        private float startTime;
         @Override
         public void onDrawFrame(GL10 gl) {
             GLES20.glDisable(GLES20.GL_DEPTH_TEST);
@@ -668,10 +669,21 @@ public class FunimateAlphaActivity extends Activity {
                     alpha = 0;
                 }
 
+                if (startTime == 0) {
+                    startTime = mMediaPlayer1.getCurrentPosition();
+                }
+
+                float timePercentage = ((mMediaPlayer1.getCurrentPosition() - startTime) % 100) / (1.0f * 100);
+                float alphaPercentage = Math.abs((int) ((mMediaPlayer1.getCurrentPosition() - startTime) / 100 % 2) - timePercentage);
+
+
+//                float timePercentage = ((mMediaPlayer1.getCurrentPosition() - startTime) % 100) / (1.0f * 100);
+//                float alphaPercentage = Math.abs(((mMediaPlayer1.getCurrentPosition() - startTime) / 100 % 2) - timePercentage);
                 mSurfaceTexture2.updateTexImage();
                 mSurfaceTexture2.getTransformMatrix(mSTMatrix2);
-                mFullScreen1.setAlpha(alpha);
+                mFullScreen1.setAlpha(alphaPercentage);
                 mFullScreen1.drawFrame(mTextureId2, mSTMatrix2);
+
             } else if (mMediaPlayer1.getCurrentPosition() >= 3000 && mMediaPlayer1.getCurrentPosition() < 4000) {
                 mSurfaceTexture1.updateTexImage();
                 mSurfaceTexture1.getTransformMatrix(mSTMatrix1);
@@ -680,6 +692,7 @@ public class FunimateAlphaActivity extends Activity {
 
                 alpha = 0.0f;
                 stateAdd = true;
+                startTime = 0;
 
             } else if (mMediaPlayer1.getCurrentPosition() >= 4000 && mMediaPlayer1.getCurrentPosition() < 6000) {
                 mSurfaceTexture1.updateTexImage();
@@ -687,14 +700,19 @@ public class FunimateAlphaActivity extends Activity {
                 mFullScreen1.setAlpha(1.0f);
                 mFullScreen1.drawFrame(mTextureId1, mSTMatrix1);
 
-                alpha += 0.03f;
-                if (alpha > 1) {
-                    alpha = 1;
+
+                if (startTime == 0) {
+                    startTime = mMediaPlayer1.getCurrentPosition();
                 }
+
+                float timePercentage = (mMediaPlayer1.getCurrentPosition() - startTime) / (1.0f * 500);
+                float alphaPercentage = timePercentage > 1 ? 1 : timePercentage;
+
+                Log.e("zmy", "alphaPercentage : "+alphaPercentage);
 
                 mSurfaceTexture2.updateTexImage();
                 mSurfaceTexture2.getTransformMatrix(mSTMatrix2);
-                mFullScreen1.setAlpha(alpha);
+                mFullScreen1.setAlpha(alphaPercentage);
                 mFullScreen1.drawFrame(mTextureId2, mSTMatrix2);
             } else if (mMediaPlayer1.getCurrentPosition() >= 6000 && mMediaPlayer1.getCurrentPosition() < 8000) {
                 mSurfaceTexture1.updateTexImage();
@@ -708,6 +726,7 @@ public class FunimateAlphaActivity extends Activity {
                 mFullScreen1.drawFrame(mTextureId2, mSTMatrix2);
 
                 alpha = 0.0f;
+                startTime = 0;
                 stateAdd = true;
             } else if (mMediaPlayer1.getCurrentPosition() >= 8000 && mMediaPlayer1.getCurrentPosition() < 10000) {
                 mSurfaceTexture2.updateTexImage();
@@ -720,24 +739,32 @@ public class FunimateAlphaActivity extends Activity {
                     alpha = 1;
                 }
 
+                if (startTime == 0) {
+                    startTime = mMediaPlayer1.getCurrentPosition();
+                }
+                float timePercentage = (mMediaPlayer1.getCurrentPosition() - startTime) / (1.0f * 500);
+                float alphaPercentage = timePercentage > 1 ? 1 : timePercentage;
+
                 mSurfaceTexture1.updateTexImage();
                 mSurfaceTexture1.getTransformMatrix(mSTMatrix1);
-                mFullScreen1.setAlpha(alpha);
+                mFullScreen1.setAlpha(alphaPercentage);
                 mFullScreen1.drawFrame(mTextureId1, mSTMatrix1);
+
             } else if (mMediaPlayer1.getCurrentPosition() >= 10000 && mMediaPlayer1.getCurrentPosition() < 11000) {
                 mSurfaceTexture1.updateTexImage();
                 mSurfaceTexture1.getTransformMatrix(mSTMatrix1);
                 mFullScreen1.setAlpha(1.0f);
                 mFullScreen1.drawFrame(mTextureId1, mSTMatrix1);
+                startTime = 0;
             } else {
                 mSurfaceTexture1.updateTexImage();
                 mSurfaceTexture1.getTransformMatrix(mSTMatrix1);
-                mFullScreen1.setAlpha(1.0f);
+                mFullScreen1.setAlpha(0.5f);
                 mFullScreen1.drawFrame(mTextureId1, mSTMatrix1);
 
                 mSurfaceTexture2.updateTexImage();
                 mSurfaceTexture2.getTransformMatrix(mSTMatrix2);
-                mFullScreen1.setAlpha(1.0f);
+                mFullScreen1.setAlpha(0.5f);
                 mFullScreen1.drawFrame(mTextureId2, mSTMatrix2);
             }
 
